@@ -152,10 +152,12 @@ public class Node extends AbstractActor {
         this.id_counter++;
 
         for (Peer peer: responsibles) {
-            try {
-                Thread.sleep(rnd.nextInt(100));
-            } catch (InterruptedException e) {e.printStackTrace(); }
-            peer.ref.tell(reqMsg, getSelf());
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                peer.ref,
+                reqMsg, getContext().system().dispatcher(),
+                getSelf()
+            );
         }
     }
 
@@ -185,10 +187,12 @@ public class Node extends AbstractActor {
 
         UpdateEntryMsg updateMsg = new UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         for (Peer responsible: responsibles) {
-            try {
-                Thread.sleep(rnd.nextInt(100));
-            } catch (InterruptedException e) {e.printStackTrace(); }
-            responsible.ref.tell(updateMsg, getSelf());
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                responsible.ref,
+                updateMsg, getContext().system().dispatcher(),
+                getSelf()
+            );
         }
     }
 
@@ -272,19 +276,23 @@ public class Node extends AbstractActor {
         this.id_counter++;
 
         for (Peer peer: responsibles) {
-            try {
-                Thread.sleep(rnd.nextInt(100));
-            } catch (InterruptedException e) {e.printStackTrace(); }
-            peer.ref.tell(reqMsg, getSelf());
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                peer.ref,
+                reqMsg, getContext().system().dispatcher(),
+                getSelf()
+            );
         }
     }
 
     public void receiveEntryRequest(EntryRequestMsg msg) {
         Entry entry = this.storage.get(msg.key);
-        try {
-            Thread.sleep(rnd.nextInt(100));
-        } catch (InterruptedException e) {e.printStackTrace(); }
-        getSender().tell(new EntryResponseMsg(entry, msg.transacition_id), getSelf());
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+            getSender(),
+            new EntryResponseMsg(entry, msg.transacition_id), getContext().system().dispatcher(),
+            getSelf()
+        );
     }
 
     public void receiveEntryResponse(EntryResponseMsg msg) {
