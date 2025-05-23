@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.example.msg.*;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
@@ -34,11 +36,11 @@ public class App {
             }
         }
 
-        nodes.get(rng.nextInt(nodes.size())).tell(new Node.SetMsg(5, "Mela"), client1);
+        nodes.get(rng.nextInt(nodes.size())).tell(new Set.InitiateMsg(5, "Mela"), client1);
         try { Thread.sleep(1000); } catch (InterruptedException e) {e.printStackTrace(); }
-        nodes.get(rng.nextInt(nodes.size())).tell(new Node.SetMsg(5, "Banana"), client1);
+        nodes.get(rng.nextInt(nodes.size())).tell(new Set.InitiateMsg(5, "Banana"), client1);
         try { Thread.sleep(1000); } catch (InterruptedException e) {e.printStackTrace(); }
-        nodes.get(rng.nextInt(nodes.size())).tell(new Node.GetMsg(5), client2);
+        nodes.get(rng.nextInt(nodes.size())).tell(new Get.InitiateMsg(5), client2);
 
         try {
             System.out.println(">> Press Enter to End <<");

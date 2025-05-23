@@ -13,6 +13,8 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import scala.concurrent.duration.Duration;
 
+import org.example.msg.*;
+
 public class Node extends AbstractActor {
     public final int id;
     private HashMap<Integer, Entry> storage;
@@ -39,7 +41,7 @@ public class Node extends AbstractActor {
         this.peers.add(i, new Peer(msg.id, msg.ref));
     }
 
-    private class Entry {
+    public class Entry {
         public String value;
         public int version;
         public Entry (String value, int version) {
@@ -84,47 +86,6 @@ public class Node extends AbstractActor {
 
     /// SET(k, v)
 
-    public static class SetSuccessMsg implements Serializable {}
-    public static class SetFailMsg implements Serializable {}
-    
-    public static class SetMsg implements Serializable {
-        public final int key;
-        public final String value;
-        public SetMsg(int key, String value) {
-            this.key=key;
-            this.value = value;
-        }
-    }
-    public static class VersionRequestMsg implements Serializable {
-        public final int key;
-        public final int transacition_id;
-        public VersionRequestMsg(int key, int tid) {
-            this.key = key;
-            this.transacition_id = tid;
-        }
-    }
-    public static class VersionResponseMsg implements Serializable {
-        public final int version;
-        public final int transacition_id;
-        public VersionResponseMsg(int version, int tid) {
-            this.version = version;
-            this.transacition_id = tid;
-        }
-    }
-    public static class UpdateEntryMsg implements Serializable {
-        public final Entry entry;
-        public final int key;
-        public UpdateEntryMsg(int key, Entry entry) {
-            this.entry = entry;
-            this.key = key;
-        }
-    }
-    public static class SetTimeoutMsg implements Serializable {
-        public final int transaction_id;
-        public SetTimeoutMsg(int tid) {
-            this.transaction_id = tid;
-        }
-    }
 
     private List<Peer> getResponsibles(int key) {
         List<Peer> ret = new LinkedList<>();
@@ -139,16 +100,16 @@ public class Node extends AbstractActor {
         return ret;
     }
 
-    private void receiveSet(SetMsg msg) {
+    private void receiveSet(Set.InitiateMsg msg) {
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         this.setTransactions.put(this.id_counter, new SetTransaction(msg.key, msg.value, getSender()));
-        VersionRequestMsg reqMsg = new VersionRequestMsg(msg.key, this.id_counter);
+        Set.VersionRequestMsg reqMsg = new Set.VersionRequestMsg(msg.key, this.id_counter);
 
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.SECONDS),
             getSelf(),
-            new SetTimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
+            new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
 
         for (Peer peer: responsibles) {
@@ -161,19 +122,19 @@ public class Node extends AbstractActor {
         }
     }
 
-    private void receiveVersionRequest(VersionRequestMsg msg) {
+    private void receiveVersionRequest(Set.VersionRequestMsg msg) {
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
-        getSender().tell(new VersionResponseMsg(version, msg.transacition_id), getSelf());
+        getSender().tell(new Set.VersionResponseMsg(version, msg.transacition_id), getSelf());
     }
-    private void receiveVersionResponse(VersionResponseMsg msg) {
+    private void receiveVersionResponse(Set.VersionResponseMsg msg) {
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
-        transaction.client.tell(new SetSuccessMsg(), getSelf());
+        transaction.client.tell(new Set.SuccessMsg(), getSelf());
 
         int maxVersion = 0;
         for (int response: transaction.replies) {
@@ -185,7 +146,7 @@ public class Node extends AbstractActor {
 
         List<Peer> responsibles = this.getResponsibles(msg.transacition_id);
 
-        UpdateEntryMsg updateMsg = new UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
+        Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         for (Peer responsible: responsibles) {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -196,17 +157,17 @@ public class Node extends AbstractActor {
         }
     }
 
-    private void receiveUpdateMessage(UpdateEntryMsg msg) {
+    private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         this.storage.put(msg.key, msg.entry);
     }
-    private void receiveSetTimeout(SetTimeoutMsg msg) {
+    private void receiveSetTimeout(Set.TimeoutMsg msg) {
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
         if (transaction!=null) {
-            transaction.client.tell(new SetFailMsg(), getSelf());
+            transaction.client.tell(new Set.FailMsg(), getSelf());
         }
     }
 
-    /// GET
+    /// GET(k)
 
     private class GetTransaction {
         public final int key;
@@ -219,60 +180,16 @@ public class Node extends AbstractActor {
         }
     }
 
-    public static class GetMsg implements Serializable {
-        public final int key;
-        public GetMsg(int key) {
-            this.key=key;
-        }
-    }
-    public static class EntryRequestMsg implements Serializable {
-        public final int key;
-        public final int transacition_id;
-        public EntryRequestMsg(int key, int tid) {
-            this.key = key;
-            this.transacition_id = tid;
-        }
-    }
-    public static class EntryResponseMsg implements Serializable {
-        public final Entry entry;
-        public final int transacition_id;
-        public EntryResponseMsg(Entry entry, int tid) {
-            this.entry = entry;
-            this.transacition_id = tid;
-        }
-    }
-    public static class GetTimeoutMsg implements Serializable {
-        public final int transaction_id;
-        public GetTimeoutMsg(int tid) {
-            this.transaction_id = tid;
-        }
-    }
-
-    public static class GetSuccessMsg implements Serializable {
-        public final int key;
-        public final String value;
-        public GetSuccessMsg(int key, String value) {
-            this.key = key;
-            this.value = value;
-        }
-    }
-    public static class GetFailMsg implements Serializable {
-        public final int key;
-        public GetFailMsg(int key) {
-            this.key = key;
-        }
-    }
-
-    public void receiveGet(GetMsg msg) {
+    public void receiveGet(Get.InitiateMsg msg) {
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         this.getTransactions.put(this.id_counter, new GetTransaction(msg.key, getSender()));
-        EntryRequestMsg reqMsg = new EntryRequestMsg(msg.key, this.id_counter);
+        Get.EntryRequestMsg reqMsg = new Get.EntryRequestMsg(msg.key, this.id_counter);
 
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.SECONDS),
             getSelf(),
-            new GetTimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
+            new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
 
         for (Peer peer: responsibles) {
@@ -285,17 +202,17 @@ public class Node extends AbstractActor {
         }
     }
 
-    public void receiveEntryRequest(EntryRequestMsg msg) {
+    public void receiveEntryRequest(Get.EntryRequestMsg msg) {
         Entry entry = this.storage.get(msg.key);
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
-            new EntryResponseMsg(entry, msg.transacition_id), getContext().system().dispatcher(),
+            new Get.EntryResponseMsg(entry, msg.transacition_id), getContext().system().dispatcher(),
             getSelf()
         );
     }
 
-    public void receiveEntryResponse(EntryResponseMsg msg) {
+    public void receiveEntryResponse(Get.EntryResponseMsg msg) {
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
         GetTransaction transaction = this.getTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.entry);
@@ -309,28 +226,28 @@ public class Node extends AbstractActor {
             }
         }
 
-        transaction.client.tell(new GetSuccessMsg(transaction.key, latestEntry.value), getSelf());
+        transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
     }
 
-    public void receiveGetTimeout(GetTimeoutMsg msg) {
+    public void receiveGetTimeout(Get.TimeoutMsg msg) {
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);
         if (transaction!=null) {
-            transaction.client.tell(new GetFailMsg(transaction.key), getSelf());
+            transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
     }
 
 	@Override
 	public Receive createReceive() {
         return receiveBuilder()
-        .match(SetMsg.class, this::receiveSet)
-        .match(VersionRequestMsg.class, this::receiveVersionRequest)
-        .match(VersionResponseMsg.class, this::receiveVersionResponse)
-        .match(UpdateEntryMsg.class, this::receiveUpdateMessage)
+        .match(Set.InitiateMsg.class, this::receiveSet)
+        .match(Set.VersionRequestMsg.class, this::receiveVersionRequest)
+        .match(Set.VersionResponseMsg.class, this::receiveVersionResponse)
+        .match(Set.UpdateEntryMsg.class, this::receiveUpdateMessage)
         .match(DebugAddNodeMsg.class, this::receiveDebugAddNode)
-        .match(GetMsg.class, this::receiveGet)
-        .match(EntryRequestMsg.class, this::receiveEntryRequest)
-        .match(EntryResponseMsg.class, this::receiveEntryResponse)
-        .match(GetTimeoutMsg.class, this::receiveGetTimeout)
+        .match(Get.InitiateMsg.class, this::receiveGet)
+        .match(Get.EntryRequestMsg.class, this::receiveEntryRequest)
+        .match(Get.EntryResponseMsg.class, this::receiveEntryResponse)
+        .match(Get.TimeoutMsg.class, this::receiveGetTimeout)
         .build();
 	}
 }
