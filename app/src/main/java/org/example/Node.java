@@ -28,6 +28,7 @@ public class Node extends AbstractActor {
     private HashMap<Integer, SetTransaction> setTransactions;
     private HashMap<Integer, GetTransaction> getTransactions;
     private int id_counter;
+    private boolean crashed;
     private Random rnd;
 
     private int joiningQuorum;
@@ -88,6 +89,7 @@ public class Node extends AbstractActor {
         this.getTransactions = new HashMap<>();
         this.id_counter = 0;
         this.rnd = new Random();
+        this.crashed = false;
         this.joiningQuorum = 0;
     }
 
@@ -112,6 +114,7 @@ public class Node extends AbstractActor {
     }
 
     private void receiveSet(Set.InitiateMsg msg) {
+        if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         this.setTransactions.put(this.id_counter, new SetTransaction(msg.key, msg.value, getSender()));
@@ -134,11 +137,13 @@ public class Node extends AbstractActor {
     }
 
     private void receiveVersionRequest(Set.VersionRequestMsg msg) {
+        if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
         getSender().tell(new Set.VersionResponseMsg(version, msg.transacition_id), getSelf());
     }
     private void receiveVersionResponse(Set.VersionResponseMsg msg) {
+        if (this.crashed) return;
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
@@ -169,9 +174,11 @@ public class Node extends AbstractActor {
     }
 
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
+        if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
     }
     private void receiveSetTimeout(Set.TimeoutMsg msg) {
+        if (this.crashed) return;
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
@@ -192,6 +199,7 @@ public class Node extends AbstractActor {
     }
 
     public void receiveGet(Get.InitiateMsg msg) {
+        if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         this.getTransactions.put(this.id_counter, new GetTransaction(msg.key, getSender()));
@@ -214,6 +222,7 @@ public class Node extends AbstractActor {
     }
 
     public void receiveEntryRequest(Get.EntryRequestMsg msg) {
+        if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -224,6 +233,7 @@ public class Node extends AbstractActor {
     }
 
     public void receiveEntryResponse(Get.EntryResponseMsg msg) {
+        if (this.crashed) return;
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
         GetTransaction transaction = this.getTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.entry);
@@ -241,6 +251,7 @@ public class Node extends AbstractActor {
     }
 
     public void receiveGetTimeout(Get.TimeoutMsg msg) {
+        if (this.crashed) return;
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);
         if (transaction!=null) {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
@@ -250,6 +261,7 @@ public class Node extends AbstractActor {
     // JOIN
 
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
+        if (this.crashed) return;
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
@@ -258,6 +270,7 @@ public class Node extends AbstractActor {
         );
     }
     private void receiveTopology(Join.TopologyMsg msg) {
+        if (this.crashed) return;
         this.peers.addAll(msg.peers);
         List<Peer> neighbors = this.getResponsibles(this.id);
         for (Peer neighbor: neighbors) {
@@ -270,6 +283,7 @@ public class Node extends AbstractActor {
         }
     }
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
+        if (this.crashed) return;
         // TODO: Trovare un algoritmo più elegante
 
         int newId = msg.nodeId;
@@ -316,7 +330,8 @@ public class Node extends AbstractActor {
             getSelf()
         );
     }
-    private void receiveResponsivilityRepsonse(Join.ResponsibilityResponseMsg msg) {
+    private void receiveResponsibilityRepsonse(Join.ResponsibilityResponseMsg msg) {
+        if (this.crashed) return;
         if (joiningQuorum >= App.R) {return;}
         for (HashMap.Entry<Integer, Entry> entry: msg.responsibility.entrySet()) {
             Entry currentValue = storage.get(entry.getKey());
@@ -343,6 +358,7 @@ public class Node extends AbstractActor {
     }
 
     private void ReceivePresenceAnnouncement(Join.AnnouncePresenceMsg msg) {
+        if (this.crashed) return;
         // Add the new node to the list of peers
         int i=0;
         while (msg.id > this.peers.get(i).id) {
@@ -362,6 +378,7 @@ public class Node extends AbstractActor {
     // LEAVE
     
     private void receiveLeave(Leave.InitiateMsg msg) {
+        if (this.crashed) return;
         AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
         for (Peer peer: this.peers) {
             getContext().system().scheduler().scheduleOnce(
@@ -375,6 +392,7 @@ public class Node extends AbstractActor {
     }
 
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
+        if (this.crashed) return;
         this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
         if (getSelf() != getSender()) return;
 
@@ -406,11 +424,100 @@ public class Node extends AbstractActor {
     }
 
     private void receiveTransferItems(TransferItemsMsg msg) {
+        if (this.crashed) return;
         for (Pair<Integer, Entry> dataItem: msg.items) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
+    }
+
+    // CRASH
+
+    private void receiveCrash(Crash.InitiateMsg msg) {
+        if (this.crashed) return;
+        this.crashed = true;
+    }
+
+    private void receiveRecovery(Crash.RecoveryMsg msg) {
+        this.crashed=false;
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+            msg.helper,
+            new Crash.TopologyRequestMsg(),
+            getContext().system().dispatcher(),
+            getSelf()
+        );
+    }
+
+    private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
+        if (this.crashed) return;
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+            getSender(),
+            new Crash.TopologyResponseMsg(this.peers),
+            getContext().system().dispatcher(),
+            getSelf()
+        );
+    }
+
+    private void receiveTopologyResponse(Crash.TopologyResponseMsg msg) {
+        this.peers = msg.peers;
+
+        // Eliminare lementi non più nostri
+        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+            List<Peer> peers = this.getResponsibles(entry.getKey());
+            if (!peers.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
+                this.storage.remove(entry.getKey());
+            }
+        }
+
+        // Chiedere elementi
+        // Only contact the N-1 nodes behind and the N-1 nodes ahead of yourself
+        // They're the only ones with data you may be interested in
+        int myIndex = 0;
+        Crash.RequestDataMsg requestDataMsg = new Crash.RequestDataMsg(this.id);
+        while (this.peers.get(myIndex).id != this.id) {myIndex++;}
+        for (int i=-App.N+1; i<App.N; i++) {
+            if (i==0) continue;
+            int j = (i+myIndex+this.peers.size())%this.peers.size();
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                this.peers.get(j).ref,
+                requestDataMsg,
+                getContext().system().dispatcher(),
+                getSelf()
+            );
+        }
+    }
+
+    private void receiveDataRequest(Crash.RequestDataMsg msg) {
+        List<Pair<Integer, Entry>> data = new LinkedList<>();
+        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+            if (isResponsible(entry.getKey(), getSender())) {
+                data.add(new Pair<>(entry.getKey(), entry.getValue()));
+            }
+        }
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+            getSender(),
+            new Crash.DataResponseMsg(data),
+            getContext().system().dispatcher(),
+            getSelf()
+        );
+    }
+
+    private void receiverDataResponse(Crash.DataResponseMsg msg) {
+        for (Pair<Integer, Entry> dataItem: msg.data) {
+            if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
+                this.storage.put(dataItem.first(), dataItem.second());
+            }
+        }
+    }
+
+    private boolean isResponsible(int key, ActorRef node) {
+        List<Peer> peers = this.getResponsibles(key);
+        return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
     }
 
 	@Override
@@ -428,7 +535,7 @@ public class Node extends AbstractActor {
         .match(Join.InitiateMsg.class, this::receiveJoinInitiate)
         .match(Join.TopologyMsg.class, this::receiveTopology)
         .match(Join.ResponsibilityRequestMsg.class, this::receiveResponsibilityRequest)
-        .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsivilityRepsonse)
+        .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsibilityRepsonse)
         .match(Join.AnnouncePresenceMsg.class, this::ReceivePresenceAnnouncement)
         .match(Leave.InitiateMsg.class, this::receiveLeave)
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
@@ -440,6 +547,12 @@ public class Node extends AbstractActor {
 /**
  * Assumptions and Considerations
  * The system will start with N nodes.
- * If this were not the case, the consensum during the joining
+ * If this were not the case, the quorum during the joining
  * operation for the first nodes wouldn't be met
+ */
+
+/* 
+ * TODO
+ * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
+ * 2. Only check if crashed on the handler of each method's init. Not all handlers
  */

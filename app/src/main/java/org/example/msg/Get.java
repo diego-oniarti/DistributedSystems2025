@@ -1,6 +1,5 @@
 package org.example.msg;
 
-import org.example.Node;
 import java.io.Serializable;
 import org.example.Node.Entry;
 

@@ -49,7 +49,7 @@ public class App {
         // Join
         ActorRef newNode = sistema.actorOf(Node.props(25));
         ActorRef bootstrapping_peer = nodes.get(rng.nextInt(nodes.size()));
-        bootstrapping_peer.tell(msg, newNode);
+        bootstrapping_peer.tell(new Join.InitiateMsg(), newNode);
 
         nodes.add(newNode);
 
