@@ -7,6 +7,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -16,6 +18,8 @@ import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
 import org.example.msg.Join.TopologyMsg;
+import org.example.msg.Leave.AnnounceLeavingMsg;
+import org.example.msg.Leave.TransferItemsMsg;
 
 public class Node extends AbstractActor {
     public final int id;
@@ -260,12 +264,12 @@ public class Node extends AbstractActor {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
                 neighbor.ref,
-                new Join.ResponsibilityRequest(this.id), getContext().system().dispatcher(),
+                new Join.ResponsibilityRequestMsg(this.id), getContext().system().dispatcher(),
                 getSelf()
             );
         }
     }
-    private void receiveResponsibilityRequest(Join.ResponsibilityRequest msg) {
+    private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
         // TODO: Trovare un algoritmo più elegante
 
         int newId = msg.nodeId;
@@ -308,11 +312,11 @@ public class Node extends AbstractActor {
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
-            new Join.ResponsibilityResponse(ret), getContext().system().dispatcher(),
+            new Join.ResponsibilityResponseMsg(ret), getContext().system().dispatcher(),
             getSelf()
         );
     }
-    private void receiveResponsivilityRepsonse(Join.ResponsibilityResponse msg) {
+    private void receiveResponsivilityRepsonse(Join.ResponsibilityResponseMsg msg) {
         if (joiningQuorum >= App.R) {return;}
         for (HashMap.Entry<Integer, Entry> entry: msg.responsibility.entrySet()) {
             Entry currentValue = storage.get(entry.getKey());
@@ -323,9 +327,89 @@ public class Node extends AbstractActor {
         joiningQuorum++;
 
         if (joiningQuorum>=App.R) {
-            // Step 1: manda a tutti l'annuncio che entri nel sistema (compreso a te stesso)
-            // Aggiungere l'handler per questo messaggio
-            // L'handler deve rimuovere i dati di cui non è più responsabile
+            Stream.concat(
+                this.peers.stream(),
+                Stream.of(new Peer(this.id, getSelf()))
+            ).forEach(peer -> {
+                    getContext().system().scheduler().scheduleOnce(
+                        Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                        peer.ref,
+                        new Join.AnnouncePresenceMsg(this.id),
+                        getContext().system().dispatcher(),
+                        getSelf()
+                    );
+                });
+        }
+    }
+
+    private void ReceivePresenceAnnouncement(Join.AnnouncePresenceMsg msg) {
+        // Add the new node to the list of peers
+        int i=0;
+        while (msg.id > this.peers.get(i).id) {
+            i++;
+        }
+        this.peers.add(i, new Peer(msg.id, getSender()));
+
+        // Remove the data you're no longer responsible for
+        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+            List<Peer> responsibles = this.getResponsibles(entry.getKey());
+            if (!responsibles.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
+                this.storage.remove(entry.getKey());
+            }
+        }
+    }
+
+    // LEAVE
+    
+    private void receiveLeave(Leave.InitiateMsg msg) {
+        AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
+        for (Peer peer: this.peers) {
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                peer.ref,
+                announcementMsg,
+                getContext().system().dispatcher(),
+                getSelf()
+            );
+        }
+    }
+
+    private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
+        this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
+        if (getSelf() != getSender()) return;
+
+        HashMap<Peer, LinkedList<Pair<Integer, Entry>>> buckets = new HashMap<>();
+
+        // Decide whilch elements to send to each peer
+        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+            List<Peer> newResponsibles = this.getResponsibles(entry.getKey());
+            for (Peer newResponsible: newResponsibles) {
+                // Create the new buckets when adding the first element to it
+                if (!buckets.containsKey(newResponsible)) {
+                    buckets.put(newResponsible, new LinkedList<>());
+                }
+
+                buckets.get(newResponsible).add(new Pair<>(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        // Send the elements
+        for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
+            getContext().system().scheduler().scheduleOnce(
+                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
+                bucket.getKey().ref,
+                new TransferItemsMsg(bucket.getValue()),
+                getContext().system().dispatcher(),
+                getSelf()
+            );
+        }
+    }
+
+    private void receiveTransferItems(TransferItemsMsg msg) {
+        for (Pair<Integer, Entry> dataItem: msg.items) {
+            if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
+                this.storage.put(dataItem.first(), dataItem.second());
+            }
         }
     }
 
@@ -343,8 +427,12 @@ public class Node extends AbstractActor {
         .match(Get.TimeoutMsg.class, this::receiveGetTimeout)
         .match(Join.InitiateMsg.class, this::receiveJoinInitiate)
         .match(Join.TopologyMsg.class, this::receiveTopology)
-        .match(Join.ResponsibilityRequest.class, this::receiveResponsibilityRequest)
-        .match(Join.ResponsibilityResponse.class, this::receiveResponsivilityRepsonse)
+        .match(Join.ResponsibilityRequestMsg.class, this::receiveResponsibilityRequest)
+        .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsivilityRepsonse)
+        .match(Join.AnnouncePresenceMsg.class, this::ReceivePresenceAnnouncement)
+        .match(Leave.InitiateMsg.class, this::receiveLeave)
+        .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
+        .match(Leave.TransferItemsMsg.class, this::receiveTransferItems)
         .build();
 	}
 }

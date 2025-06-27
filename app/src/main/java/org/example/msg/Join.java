@@ -16,16 +16,23 @@ public class Join {
             this.peers.addAll(peers);
         }
     }
-    public static class ResponsibilityRequest implements Serializable {
+    public static class ResponsibilityRequestMsg implements Serializable {
         public final int nodeId;
-        public ResponsibilityRequest(int nodeId) {
+        public ResponsibilityRequestMsg(int nodeId) {
             this.nodeId = nodeId;
         }
     }
-    public static class ResponsibilityResponse implements Serializable {
+    public static class ResponsibilityResponseMsg implements Serializable {
         public final HashMap<Integer, Node.Entry> responsibility;
-        public ResponsibilityResponse(HashMap<Integer, Node.Entry> responsibility) {
+        public ResponsibilityResponseMsg(HashMap<Integer, Node.Entry> responsibility) {
             this.responsibility = responsibility;
+        }
+    }
+
+    public static class AnnouncePresenceMsg implements Serializable {
+        public final int id;
+        public AnnouncePresenceMsg(int id) {
+            this.id = id;
         }
     }
 }
