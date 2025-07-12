@@ -12,27 +12,29 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
 public class App {
-    public static final int N = 5;
-    public static final int W = 3;
-    public static final int R = 3;
+    public static final int N = 3;
+    public static final int W = 2;
+    public static final int R = 2;
     public static final int T = 9999;
+
+    public static final int START = 5;
 
     public static void main(String[] args) {
         Random rng = new Random();
 
-        ActorSystem sistema = ActorSystem.create("MarsSystem");
+        ActorSystem system = ActorSystem.create("MarsSystem");
 
-        ActorRef client1 = sistema.actorOf(Client.props("Alice"));
-        ActorRef client2 = sistema.actorOf(Client.props("Bob"));
+        ActorRef client1 = system.actorOf(Client.props("Alice"));
+        ActorRef client2 = system.actorOf(Client.props("Bob"));
 
         List<ActorRef> nodes = new ArrayList<>();
-        for (int i=0; i<10; i++) {
-            nodes.add(sistema.actorOf(Node.props(i*10)));
+        for (int i=0; i<START; i++) {
+            nodes.add(system.actorOf(Node.props((i+1)*10)));
         }
-        for (int i=0; i<10; i++) {
+        for (int i=0; i<START; i++) {
             ActorRef n = nodes.get(i);
             for (ActorRef node: nodes) {
-                node.tell(new Node.DebugAddNodeMsg(n, i*10), n);
+                node.tell(new Node.DebugAddNodeMsg(n, (i+1)*10), n);
             }
         }
 
@@ -47,7 +49,7 @@ public class App {
         try { Thread.sleep(1000); } catch (InterruptedException e) {e.printStackTrace(); }
 
         // Join
-        ActorRef newNode = sistema.actorOf(Node.props(25));
+        ActorRef newNode = system.actorOf(Node.props(25));
         ActorRef bootstrapping_peer = nodes.get(rng.nextInt(nodes.size()));
         bootstrapping_peer.tell(new Join.InitiateMsg(), newNode);
 
@@ -57,6 +59,6 @@ public class App {
             System.out.println(">> Press Enter to End <<");
             System.in.read();
         }catch (Exception e) {}
-        sistema.terminate();
+        system.terminate();
     }
 }

@@ -1,11 +1,7 @@
 package org.example;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -14,6 +10,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.japi.Pair;
+import org.example.msg.Set;
 import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
@@ -21,7 +18,24 @@ import org.example.msg.Join.TopologyMsg;
 import org.example.msg.Leave.AnnounceLeavingMsg;
 import org.example.msg.Leave.TransferItemsMsg;
 
+/*
+    CLASS Node -> represents a node in the system
+        - ATTRIBUTES
+            - id -> id of the node
+            - storage -> contains the data items associated with the node; each entry is an instance of the Entry
+                         class containing the name of the data item ad its version
+            - peers -> list of all the nodes in the network
+            - setTransaction -> list of set requests (write) that the node is managing
+            - getTransaction -> list of get requests (read) that the node is managing
+            - id_counter -> number of transactions that the node is managing
+            - crashed -> boolean value, if true the node crashed
+            - rnd -> instance of class random, needed for generate random delays in messages communication
+            - joiningQuorum
+ */
 public class Node extends AbstractActor {
+
+    /// ATTRIBUTES
+
     public final int id;
     private HashMap<Integer, Entry> storage;
     private List<Peer> peers;
@@ -30,7 +44,6 @@ public class Node extends AbstractActor {
     private int id_counter;
     private boolean crashed;
     private Random rnd;
-
     private int joiningQuorum;
 
     /// DEBUG
@@ -50,8 +63,13 @@ public class Node extends AbstractActor {
         this.peers.add(i, new Peer(msg.id, msg.ref));
     }
 
-    // CLASSES 
-
+    /// CLASSES
+    /*
+        CLASS Entry -> represents an entry of the local storage
+            - ATTRIBUTES
+                - value -> string name of the data item
+                - version -> the version of the data item
+     */
     public class Entry {
         public String value;
         public int version;
@@ -60,6 +78,12 @@ public class Node extends AbstractActor {
             this.version = version;
         }
     }
+    /*
+       CLASS Peer -> represents a peer in the network
+           - ATTRIBUTES
+               - id -> id of the peer
+               - ref -> actor reference of the peer
+    */
     public class Peer {
         public int id;
         public ActorRef ref;
@@ -68,6 +92,14 @@ public class Node extends AbstractActor {
             this.ref = ref;
         }
     }
+    /*
+       CLASS SetTransaction -> represents a set request (adding or updating a data item)
+           - ATTRIBUTES
+               - key -> key of data item
+               - value -> value of the data item
+               - replies -> list of versions of the collected replies
+               - client -> actor reference of the client that made the set request
+    */
     private class SetTransaction {
         public final int key;
         public final String value;
@@ -80,7 +112,25 @@ public class Node extends AbstractActor {
             this.client = client;
         }
     }
+    /*
+       CLASS GetTransaction -> represents a get request (read a data item)
+           - ATTRIBUTES
+               - key -> key of data item
+               - replies -> list of entries of the collected replies
+               - client -> actor reference of the client that made the get request
+    */
+    private class GetTransaction {
+        public final int key;
+        public final List<Entry> replies;
+        public final ActorRef client;
+        public GetTransaction(int key, ActorRef client) {
+            this.key = key;
+            this.replies = new LinkedList<>();
+            this.client = client;
+        }
+    }
 
+    /// CONSTRUCTOR
     public Node (int id) {
         this.id = id;
         this.storage = new HashMap<>();
@@ -99,33 +149,43 @@ public class Node extends AbstractActor {
 
     /// SET(k, v)
 
-
+    // method to discover the nodes that are responsible for a specific data item
     private List<Peer> getResponsibles(int key) {
         List<Peer> ret = new LinkedList<>();
         int i = 0;
+        // increase the index until we reach the end of the list, or we find the peer
+        // with an id that is major than the data item key
         while (i<this.peers.size() && this.peers.get(i).id < key) {
             i++;
         }
+        // if we reached the end, we start from the beginning
         if (i==this.peers.size()) { i = 0; }
+        // collect the N peers that are responsible for the data item (we treat the
+        // list like a "circular vector")
         for (int j=0; j<App.N; j++) {
             ret.add(this.peers.get((i+j)%this.peers.size()));
         }
         return ret;
     }
 
+    // Set.InitiateMsg handler -> finds responsibles for the data item, set a timeout and requests the version to
+    //                            the responsibles
     private void receiveSet(Set.InitiateMsg msg) {
         if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
+        // VersionRequest message creation
         this.setTransactions.put(this.id_counter, new SetTransaction(msg.key, msg.value, getSender()));
         Set.VersionRequestMsg reqMsg = new Set.VersionRequestMsg(msg.key, this.id_counter);
 
+        // TimeoutMsg creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.SECONDS),
             getSelf(),
             new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
 
+        // VersionRequest message send
         for (Peer peer: responsibles) {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -136,22 +196,32 @@ public class Node extends AbstractActor {
         }
     }
 
+    // Set.VersionRequestMsg handler -> if the node already contains the data item, it returns its version,
+    //                                  otherwise it returns -1; it sends the result to the sender
     private void receiveVersionRequest(Set.VersionRequestMsg msg) {
         if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
+        // VersionResponse message creation and send
         getSender().tell(new Set.VersionResponseMsg(version, msg.transacition_id), getSelf());
     }
+
+    // Set.VersionResponseMsg handler -> checks the quorum, tells the client about the success and updates the version of
+    //                                   the data items of all replicas
     private void receiveVersionResponse(Set.VersionResponseMsg msg) {
         if (this.crashed) return;
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
+        // select the right transaction
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
+        // check the quorum
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
+        // Success message creation and send
         transaction.client.tell(new Set.SuccessMsg(), getSelf());
 
+        // find the max version and increase it by one
         int maxVersion = 0;
         for (int response: transaction.replies) {
             if (response > maxVersion) {
@@ -162,7 +232,9 @@ public class Node extends AbstractActor {
 
         List<Peer> responsibles = this.getResponsibles(msg.transacition_id);
 
+        // UpdateEntry message creation (send the data item with the updated version to all responsibles)
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
+        // UpdateEntry message send
         for (Peer responsible: responsibles) {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -173,13 +245,17 @@ public class Node extends AbstractActor {
         }
     }
 
+    // Set.UpdateEntryMsg handler -> it inserts the updated entry in the local storage
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
     }
+
+    // Set.TimeoutMsg handler -> removes the transaction and sends a FailMsg to the client
     private void receiveSetTimeout(Set.TimeoutMsg msg) {
         if (this.crashed) return;
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
+        // Set.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
         }
@@ -187,30 +263,23 @@ public class Node extends AbstractActor {
 
     /// GET(k)
 
-    private class GetTransaction {
-        public final int key;
-        public final List<Entry> replies;
-        public final ActorRef client;
-        public GetTransaction(int key, ActorRef client) {
-            this.key = key;
-            this.replies = new LinkedList<>();
-            this.client = client;
-        }
-    }
-
+    // Get.InitiateMsg handler -> sets a timeout and sends a get request to all the responsibles for the data items
     public void receiveGet(Get.InitiateMsg msg) {
         if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         this.getTransactions.put(this.id_counter, new GetTransaction(msg.key, getSender()));
+        // EntryRequest message creation
         Get.EntryRequestMsg reqMsg = new Get.EntryRequestMsg(msg.key, this.id_counter);
 
+        // Timeout message creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.SECONDS),
             getSelf(),
             new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
 
+        // EntryRequest message send
         for (Peer peer: responsibles) {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -221,9 +290,11 @@ public class Node extends AbstractActor {
         }
     }
 
+    // Get.EntryRequestMSG handler -> takes the entry from the local storage and sends it to the coordinator
     public void receiveEntryRequest(Get.EntryRequestMsg msg) {
         if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
+        // EntryResponse message creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
@@ -232,27 +303,32 @@ public class Node extends AbstractActor {
         );
     }
 
+    // Get.EntryResponseMsg handler -> checks the quorum ands sends the most updated data item to the client with a
+    //                                 Get.SuccessMsg
     public void receiveEntryResponse(Get.EntryResponseMsg msg) {
         if (this.crashed) return;
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
         GetTransaction transaction = this.getTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.entry);
+        // quorum check
         if (transaction.replies.size() < App.R) { return; }
         this.getTransactions.remove(msg.transacition_id);
-        
+        // find the most updated data item
         Entry latestEntry = null;
         for (Entry entry: transaction.replies) {
             if (entry!=null && (latestEntry==null || entry.version > latestEntry.version)) {
                 latestEntry = entry;
             }
         }
-
+        // Success message creation and send
         transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
     }
 
+    // Get.TimeoutMsg handler -> removes the transaction from the pending ones and sends to the client a Get.FailMsg
     public void receiveGetTimeout(Get.TimeoutMsg msg) {
         if (this.crashed) return;
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);
+        // Get.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
@@ -300,7 +376,7 @@ public class Node extends AbstractActor {
             allNodes.add(peer);
             last_id = peer.id;
         }
-        if (newId > peers.getLast().id) {
+        if (newId > peers.get(peers.size()-1).id) {
             allNodes.add(new Peer(newId, newRef));
         }
 
@@ -527,6 +603,7 @@ public class Node extends AbstractActor {
         .match(Set.VersionRequestMsg.class, this::receiveVersionRequest)
         .match(Set.VersionResponseMsg.class, this::receiveVersionResponse)
         .match(Set.UpdateEntryMsg.class, this::receiveUpdateMessage)
+        .match(Set.TimeoutMsg.class,this::receiveSetTimeout)
         .match(DebugAddNodeMsg.class, this::receiveDebugAddNode)
         .match(Get.InitiateMsg.class, this::receiveGet)
         .match(Get.EntryRequestMsg.class, this::receiveEntryRequest)
