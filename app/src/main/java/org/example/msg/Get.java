@@ -3,79 +3,120 @@ package org.example.msg;
 import java.io.Serializable;
 import org.example.Node.Entry;
 
-// CLASS Get -> it contains all the possible messages exchanged during a get request (read operation)
+/**
+ * This class represents the messages exchanged during a get request (read operation).
+ */
 public class Get {
-    /*
-        CLASS InitiateMsg -> message to begin the get request
-            - ATTRIBUTES
-                - key -> key of the data item
+    /**
+     * This class represents the message to begin a get request.
      */
     public static class InitiateMsg implements Serializable {
+        /** Key of the data item.
+         */
         public final int key;
+        /**
+         * Constructor of IntiateMsg class.
+         *
+         * @param key key  of the data item.
+         */
         public InitiateMsg(int key) {
             this.key=key;
         }
     }
-    /*
-        CLASS EntryRequestMsg -> message to request the replicas to the responsibles for the data item
-            - ATTRIBUTES
-                - key -> key of the data item
-                - transaction_id -> id of the get request
+    /**
+     * This class represents the message to request the replicas to the responsibles for the data item.
      */
     public static class EntryRequestMsg implements Serializable {
+        /** Key of the data item.
+         */
         public final int key;
+        /** Get request ID.
+         */
         public final int transacition_id;
+        /**
+         * Constructor of EntryRequestMsg class.
+         *
+         * @param key key of the data item.
+         * @param tid get request ID
+         */
         public EntryRequestMsg(int key, int tid) {
             this.key = key;
             this.transacition_id = tid;
         }
     }
-    /*
-        CLASS EntryResponseMsg -> message to give to the coordinator the replica
-            - ATTRIBUTES
-                - entry -> entry of the responsible local storage
-                - transaction_id -> id of the transaction
+    /**
+     * This class represents the message to to give to the coordinator the replica.
      */
     public static class EntryResponseMsg implements Serializable {
+        /** Entry of the responsible local storage.
+         */
         public final Entry entry;
+        /** Get request ID.
+         */
         public final int transacition_id;
+        /**
+         * Constructor of EntryResponseMsg class.
+         *
+         * @param entry entry of the responsible local storage
+         * @param tid get request ID
+         */
         public EntryResponseMsg(Entry entry, int tid) {
             this.entry = entry;
             this.transacition_id = tid;
         }
     }
-    /*
-        CLASS TimeoutMsg -> message to set a timeout to the get request
-            - ATTRIBUTES
-                - transaction_id -> id of the transaction
-    */
+    /**
+     * This class represents the message to set a timeout to the get request.
+     */
     public static class TimeoutMsg implements Serializable {
+        /** Get request ID.
+         */
         public final int transaction_id;
+
+        /**
+         * Constructor of TimeoutMsg class.
+         *
+         * @param tid get request ID
+         */
         public TimeoutMsg(int tid) {
             this.transaction_id = tid;
         }
     }
-    /*
-        CLASS SuccessMsg -> message to notify the client about the success
-            - ATTRIBUTES
-                - key -> key of the data item
-                - value -> value of the data item
-    */
+    /**
+     * This class represents the message to notify the client about the success.
+     */
     public static class SuccessMsg implements Serializable {
+        /** Key of the data item.
+         */
         public final int key;
+        /** Value of the data item.
+         */
         public final String value;
+
+        /**
+         * Constructor of SuccessMsg class.
+         *
+         * @param key key of the data item
+         * @param value value of the data item
+         */
         public SuccessMsg(int key, String value) {
             this.key = key;
             this.value = value;
         }
     }
-    /*
-        CLASS FailMsg -> message to notify the client about the fail
-            - ATTRIBUTES
-                - key -> key of the data item
-    */
+    /**
+     * This class the message to notify the client about the fail.
+     */
     public static class FailMsg implements Serializable {
+        /** Key of the data item.
+         */
         public final int key;
+
+        /**
+         * Constructor of FailMsg class.
+         *
+         * @param key key of the data item.
+         */
         public FailMsg(int key) {
             this.key = key;
         }

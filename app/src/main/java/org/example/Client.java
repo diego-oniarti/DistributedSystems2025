@@ -16,11 +16,11 @@ public class Client extends AbstractActor {
 
     // Set.SuccessMsg handler
     private void receiveSetSuccess(Set.SuccessMsg msg) {
-        System.out.println(this.name + ": Success");
+        System.out.println(this.name + " : Success");
     }
     // Set.FailMsg handler
     private void receiveSetFail(Set.FailMsg msg) {
-        System.out.println(this.name + ": Fail");
+        System.out.println(this.name + " : Fail");
     }
     // Get.SuccessMsg handler
     private void receiveGetSuccess(Get.SuccessMsg msg) {

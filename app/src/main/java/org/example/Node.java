@@ -18,30 +18,33 @@ import org.example.msg.Join.TopologyMsg;
 import org.example.msg.Leave.AnnounceLeavingMsg;
 import org.example.msg.Leave.TransferItemsMsg;
 
-/*
-    CLASS Node -> represents a node in the system
-        - ATTRIBUTES
-            - id -> id of the node
-            - storage -> contains the data items associated with the node; each entry is an instance of the Entry
-                         class containing the name of the data item ad its version
-            - peers -> list of all the nodes in the network
-            - setTransaction -> list of set requests (write) that the node is managing
-            - getTransaction -> list of get requests (read) that the node is managing
-            - id_counter -> number of transactions that the node is managing
-            - crashed -> boolean value, if true the node crashed
-            - rnd -> instance of class random, needed for generate random delays in messages communication
-            - joiningQuorum
+/**
+ * The class node represents a node in the system.
  */
 public class Node extends AbstractActor {
 
     /// ATTRIBUTES
 
+    /** ID of the node.
+     */
     public final int id;
+    /** Contains the data items associated with the node.
+     */
     private HashMap<Integer, Entry> storage;
+    /** List of all the nodes in the network.
+     */
     private List<Peer> peers;
+    /** List of set requests (write) that the node is managing.
+     */
     private HashMap<Integer, SetTransaction> setTransactions;
+    /** List of get requests (read) that the node is managing.
+     */
     private HashMap<Integer, GetTransaction> getTransactions;
+    /** Number of transactions that the node is managing.
+     */
     private int id_counter;
+    /** Boolean value, if true the node crashed.
+     */
     private boolean crashed;
     private Random rnd;
     private int joiningQuorum;
@@ -64,13 +67,13 @@ public class Node extends AbstractActor {
     }
 
     /// CLASSES
-    /*
-        CLASS Entry -> represents an entry of the local storage
-            - ATTRIBUTES
-                - value -> string name of the data item
-                - version -> the version of the data item
+
+    /**
+     * The class represents an entry of the local storage.
      */
     public class Entry {
+        /** String name of the data item.
+         */
         public String value;
         public int version;
         public Entry (String value, int version) {
@@ -78,33 +81,53 @@ public class Node extends AbstractActor {
             this.version = version;
         }
     }
-    /*
-       CLASS Peer -> represents a peer in the network
-           - ATTRIBUTES
-               - id -> id of the peer
-               - ref -> actor reference of the peer
-    */
+    /**
+     * The class represents a peer in the network.
+     */
     public class Peer {
+        /** ID of the peer.
+         */
         public int id;
+        /** Actor reference of the peer.
+         */
         public ActorRef ref;
         public Peer (int id, ActorRef ref) {
             this.id = id;
             this.ref = ref;
         }
+
+        // debug
+        @Override
+        public String toString() {
+            return "Peer{" +
+                    "id=" + id +
+                    '}';
+        }
     }
-    /*
-       CLASS SetTransaction -> represents a set request (adding or updating a data item)
-           - ATTRIBUTES
-               - key -> key of data item
-               - value -> value of the data item
-               - replies -> list of versions of the collected replies
-               - client -> actor reference of the client that made the set request
-    */
+    /**
+     * The class represents a set request (adding or updating a data item).
+     */
     private class SetTransaction {
+        /** Key of data item.
+         */
         public final int key;
+        /** Value of the data item.
+         */
         public final String value;
+        /** List of versions of the collected replies.
+         */
         public final List<Integer> replies;
+        /** Actor reference of the client that made the set request.
+         */
         public final ActorRef client;
+
+        /**
+         * Constructor of class SetTransaction.
+         *
+         * @param key key of the data item
+         * @param value value of the data item
+         * @param client client that made the request
+         */
         public SetTransaction(int key, String value, ActorRef client) {
             this.key = key;
             this.value = value;
@@ -112,17 +135,26 @@ public class Node extends AbstractActor {
             this.client = client;
         }
     }
-    /*
-       CLASS GetTransaction -> represents a get request (read a data item)
-           - ATTRIBUTES
-               - key -> key of data item
-               - replies -> list of entries of the collected replies
-               - client -> actor reference of the client that made the get request
-    */
+    /**
+     * The class represents a get request (read a data item).
+     */
     private class GetTransaction {
+        /** Key of the data item.
+         */
         public final int key;
+        /** List of entries of the collected replies.
+         */
         public final List<Entry> replies;
+        /** Actor reference of the client that made the get request.
+         */
         public final ActorRef client;
+
+        /**
+         * Constructor of class GetTransaction.
+         *
+         * @param key key of the data item
+         * @param client Actor reference of the client that made the request
+         */
         public GetTransaction(int key, ActorRef client) {
             this.key = key;
             this.replies = new LinkedList<>();
@@ -131,6 +163,12 @@ public class Node extends AbstractActor {
     }
 
     /// CONSTRUCTOR
+
+    /**
+     * Class Node constructor
+     *
+     * @param id ID of the node
+     */
     public Node (int id) {
         this.id = id;
         this.storage = new HashMap<>();
@@ -149,7 +187,12 @@ public class Node extends AbstractActor {
 
     /// SET(k, v)
 
-    // method to discover the nodes that are responsible for a specific data item
+    /**
+     * Discovers the nodes that are responsible for a specific data item.
+     *
+     * @param key key of the data item
+     * @return the list of nodes that are responsibles for the data item
+     */
     private List<Peer> getResponsibles(int key) {
         List<Peer> ret = new LinkedList<>();
         int i = 0;
@@ -167,9 +210,12 @@ public class Node extends AbstractActor {
         }
         return ret;
     }
-
-    // Set.InitiateMsg handler -> finds responsibles for the data item, set a timeout and requests the version to
-    //                            the responsibles
+    /**
+     * Set.InitiateMsg handler; finds responsibles for the data item, sets a timeout and requests the version to
+     * the responsibles.
+     *
+     * @param msg Set.InitiateMsg message
+     */
     private void receiveSet(Set.InitiateMsg msg) {
         if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
@@ -195,9 +241,12 @@ public class Node extends AbstractActor {
             );
         }
     }
-
-    // Set.VersionRequestMsg handler -> if the node already contains the data item, it returns its version,
-    //                                  otherwise it returns -1; it sends the result to the sender
+    /**
+     * Set.VersionRequestMsg handler; if the node already contains the data item, it returns its version,
+     *  otherwise it returns -1; it sends the result to the sender.
+     *
+     * @param msg Set.VersionRequestMsg message
+     */
     private void receiveVersionRequest(Set.VersionRequestMsg msg) {
         if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
@@ -206,8 +255,12 @@ public class Node extends AbstractActor {
         getSender().tell(new Set.VersionResponseMsg(version, msg.transacition_id), getSelf());
     }
 
-    // Set.VersionResponseMsg handler -> checks the quorum, tells the client about the success and updates the version of
-    //                                   the data items of all replicas
+    /**
+     * Set.VersionResponseMsg handler; checks the quorum, tells the client about the success and updates the version of
+     * the data item of all replicas.
+     *
+     * @param msg Set.VersionResponseMsg message
+     */
     private void receiveVersionResponse(Set.VersionResponseMsg msg) {
         if (this.crashed) return;
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
@@ -230,7 +283,7 @@ public class Node extends AbstractActor {
         }
         maxVersion++;
 
-        List<Peer> responsibles = this.getResponsibles(msg.transacition_id);
+        List<Peer> responsibles = this.getResponsibles(transaction.key);
 
         // UpdateEntry message creation (send the data item with the updated version to all responsibles)
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
@@ -244,14 +297,21 @@ public class Node extends AbstractActor {
             );
         }
     }
-
-    // Set.UpdateEntryMsg handler -> it inserts the updated entry in the local storage
+    /**
+     * Set.UpdateEntryMsg handler; it inserts the updated entry in the local storage.
+     *
+     * @param msg Set.UpdateEntry message
+     */
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
+        System.out.println("W "+this.id+" : "+msg.key);
     }
-
-    // Set.TimeoutMsg handler -> removes the transaction and sends a FailMsg to the client
+    /**
+     * Set.TimeoutMsg handler; removes the transaction and sends a FailMsg to the client.
+     *
+     * @param msg Set.TimeoutMsg message
+     */
     private void receiveSetTimeout(Set.TimeoutMsg msg) {
         if (this.crashed) return;
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
@@ -262,8 +322,11 @@ public class Node extends AbstractActor {
     }
 
     /// GET(k)
-
-    // Get.InitiateMsg handler -> sets a timeout and sends a get request to all the responsibles for the data items
+    /**
+     * Get.InitiateMsg handler; sets a timeout and sends a get request to all the responsibles for the data item.
+     *
+     * @param msg Get.InitiateMsg message
+     */
     public void receiveGet(Get.InitiateMsg msg) {
         if (this.crashed) return;
         List<Peer> responsibles = this.getResponsibles(msg.key);
@@ -289,8 +352,11 @@ public class Node extends AbstractActor {
             );
         }
     }
-
-    // Get.EntryRequestMSG handler -> takes the entry from the local storage and sends it to the coordinator
+    /**
+     * Get.EntryRequestMsg handler; takes the entry from the local storage and sends it to the coordinator.
+     *
+     * @param msg Get.EntryRequestMsg message
+     */
     public void receiveEntryRequest(Get.EntryRequestMsg msg) {
         if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
@@ -302,9 +368,12 @@ public class Node extends AbstractActor {
             getSelf()
         );
     }
-
-    // Get.EntryResponseMsg handler -> checks the quorum ands sends the most updated data item to the client with a
-    //                                 Get.SuccessMsg
+    /**
+     *  Get.EntryResponseMsg handler; checks the quorum ands sends the most updated data item to the client
+     *  with a Get.SuccessMsg.
+     *
+     * @param msg Get.EntryResponseMsg message
+     */
     public void receiveEntryResponse(Get.EntryResponseMsg msg) {
         if (this.crashed) return;
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
@@ -321,10 +390,18 @@ public class Node extends AbstractActor {
             }
         }
         // Success message creation and send
-        transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
-    }
+        if (latestEntry!=null){
+            transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
+        }else{
+            transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+        }
 
-    // Get.TimeoutMsg handler -> removes the transaction from the pending ones and sends to the client a Get.FailMsg
+    }
+    /**
+     * Get.TimeoutMsg handler; removes the transaction from the pending ones and sends to the client a Get.FailMsg.
+     *
+     * @param msg Get.TimeoutMsg message
+     */
     public void receiveGetTimeout(Get.TimeoutMsg msg) {
         if (this.crashed) return;
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);

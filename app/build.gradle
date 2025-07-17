@@ -23,9 +23,15 @@ dependencies {
     implementation "com.typesafe.akka:akka-actor-typed_${versions.ScalaBinary}:${versions.AkkaVersion}"
 
     testImplementation "com.typesafe.akka:akka-actor-testkit-typed_${versions.ScalaBinary}:${versions.AkkaVersion}"
-    testImplementation "junit:junit:${versions.JunitVersion}"
+    //testImplementation "junit:junit:${versions.JunitVersion}"
     implementation "ch.qos.logback:logback-classic:${versions.LogBackVersion}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
 }
+
+test {
+    useJUnitPlatform()
+}
+
 
 compileJava {
     options.compilerArgs += ["-Xlint:deprecation"]
