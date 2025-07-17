@@ -585,15 +585,29 @@ public class Node extends AbstractActor {
         }
     }
 
-    // CRASH
+    /// CRASH
 
+    /**
+     * Crash.InitiateMsg handler; the node crashes setting its crashed attribute to true.
+     *
+     * @param msg Crash.InitiateMsg message
+     */
     private void receiveCrash(Crash.InitiateMsg msg) {
         if (this.crashed) return;
         this.crashed = true;
     }
 
+    /// RECOVERY
+
+    /**
+     * Crash.RecoveryMsg handler; the node recovers setting its crashed attribute to false and send a message to the
+     * helper requesting the network topology.
+     *
+     * @param msg Crash.RecoveryMsg message
+     */
     private void receiveRecovery(Crash.RecoveryMsg msg) {
         this.crashed=false;
+        // Crash.TopologyRequestMsg creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             msg.helper,
@@ -602,9 +616,14 @@ public class Node extends AbstractActor {
             getSelf()
         );
     }
-
+    /**
+     * Crash.TopologyRequestMsg handler; it sends the network topology to the recovered node.
+     *
+     * @param msg Crash.TopologyRequestMsg message
+     */
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
         if (this.crashed) return;
+        // Crash.TopologyResponseMsg creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
@@ -613,11 +632,16 @@ public class Node extends AbstractActor {
             getSelf()
         );
     }
-
+    /**
+     * Crash.TopologyResponseMsg handler; it deletes elements that are no more under the recovered node control
+     * and ask for elements to the nodes that own the recovered node data items.
+     *
+     * @param msg Crash.TopologyResponseMsg message
+     */
     private void receiveTopologyResponse(Crash.TopologyResponseMsg msg) {
         this.peers = msg.peers;
 
-        // Eliminare lementi non più nostri
+        // Delete elements the recovered node will no more be responsible for
         for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
             List<Peer> peers = this.getResponsibles(entry.getKey());
             if (!peers.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
@@ -625,15 +649,16 @@ public class Node extends AbstractActor {
             }
         }
 
-        // Chiedere elementi
-        // Only contact the N-1 nodes behind and the N-1 nodes ahead of yourself
-        // They're the only ones with data you may be interested in
+        // Ask for elements: only contact the N-1 nodes behind and the N-1 nodes ahead of yourself,
+        // they're the only ones with data you may be interested in
         int myIndex = 0;
+        // Crash.RequestDataMsg creation
         Crash.RequestDataMsg requestDataMsg = new Crash.RequestDataMsg(this.id);
         while (this.peers.get(myIndex).id != this.id) {myIndex++;}
         for (int i=-App.N+1; i<App.N; i++) {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
+            // Crash.RequestDataMsg send
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
                 this.peers.get(j).ref,
@@ -643,14 +668,20 @@ public class Node extends AbstractActor {
             );
         }
     }
-
+    /**
+     * Crash.RequestDataMsg handler; it sends the data the recovered node is responsible for.
+     *
+     * @param msg Crash.RequestDataMsg message
+     */
     private void receiveDataRequest(Crash.RequestDataMsg msg) {
+        // find elements the recovered node is responsible for
         List<Pair<Integer, Entry>> data = new LinkedList<>();
         for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
             if (isResponsible(entry.getKey(), getSender())) {
                 data.add(new Pair<>(entry.getKey(), entry.getValue()));
             }
         }
+        // Crash.DataResponseMsg creation and send
         getContext().system().scheduler().scheduleOnce(
             Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
             getSender(),
@@ -659,7 +690,11 @@ public class Node extends AbstractActor {
             getSelf()
         );
     }
-
+    /**
+     * Crash.DataResponseMsg handler; inserts/updates the data items the recovered node is responsible for.
+     *
+     * @param msg Crash.DataResponseMsg message
+     */
     private void receiverDataResponse(Crash.DataResponseMsg msg) {
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
@@ -668,6 +703,13 @@ public class Node extends AbstractActor {
         }
     }
 
+    /**
+     * Method to determine if a node is responsible for a data item.
+     *
+     * @param key key of the data item
+     * @param node Actor reference of the node of interest
+     * @return true if the node is responsible for the data item, false otherwise
+     */
     private boolean isResponsible(int key, ActorRef node) {
         List<Peer> peers = this.getResponsibles(key);
         return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
