@@ -14,14 +14,18 @@ public class App {
     public static final int N = 3;
     public static final int W = 2;
     public static final int R = 2;
-    public static final int T = 100;
+    public static final int T = 500;
 
     public static void main(String[] args) throws FileNotFoundException {
 
         AppDebug d = new AppDebug("set_test");
-        d.setFixedTest();
 
-        String e = d.check_set_file();
+        // d.setFixedTest();
+        // String e = d.check_set_file();
+        // System.out.println(e);
+
+        String e = d.sequentialConsistencyTest();
         System.out.println(e);
+
     }
 }

@@ -2,9 +2,13 @@ package org.example;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.japi.Pair;
 
 import org.example.Node.Peer;
+import org.example.msg.Get;
 import org.example.msg.Set;
+import org.example.shared.Graph;
+import org.example.shared.NamedClient;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,18 +27,22 @@ public class AppDebug {
     public static final int N_CLIENT = 2;
 
     public ActorSystem system;
-    public List<ActorRef> clients;
+    public List<NamedClient> clients;
     public List<Peer> nodes;
 
     public AppDebug(String name) {
         this.system = ActorSystem.create(name);
         this.clients = new ArrayList<>();
         this.nodes = new ArrayList<>();
+
+        this.addClients();
+        this.addNodes();
     }
 
-    public void addClients(){
+    public void addClients() {
         for (int i = 0; i<N_CLIENT; i++){
-            this.clients.add(this.system.actorOf(Client.props(generateRandomString(4))));
+            String name = generateRandomString(4);
+            this.clients.add(new NamedClient(name, this.system.actorOf(Client.props(name))));
         }
     }
 
@@ -51,12 +59,8 @@ public class AppDebug {
     }
 
     public void setFixedTest(){
-
         // setting of the network
         Random rng = new Random();
-
-        this.addClients();
-        this.addNodes();
 
         // create debug file and direct the console output to it
         PrintStream console = System.out;
@@ -73,7 +77,7 @@ public class AppDebug {
             int key = rng.nextInt(bound);
             String value = generateRandomString(3);
             this.nodes.get(rng.nextInt(nodes.size())).ref
-                .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())));
+                .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())).ref);
 
             try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
         }
@@ -158,6 +162,123 @@ public class AppDebug {
 
         return "Set test is correct";
 
+    }
+
+    public String sequentialConsistencyTest() {
+        // setting of the network
+        Random rng = new Random();
+
+        // create debug file and direct the console output to it
+        PrintStream console = System.out;
+        try{
+            PrintStream fileOut = new PrintStream(new FileOutputStream("seq_cons.txt"));
+            System.setOut(fileOut);
+        }catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        final int N_OP = 20;
+
+        int bound = (STARTING_NODES+1)*10;
+
+        int[] keys = new int[4];
+        for (int i=0; i<keys.length; i++) {
+            keys[i] = rng.nextInt(bound);
+        }
+
+        for (int i=0; i<N_OP; i++) {
+            ActorRef client = clients.get(rng.nextInt(clients.size())).ref;
+            Peer node = nodes.get(rng.nextInt(nodes.size()));
+            int key = keys[rng.nextInt(keys.length)];
+
+            if (rng.nextBoolean()) {
+                // SET
+                String value = generateRandomString(5);
+                node.ref.tell(new Set.InitiateMsg(key, value), client);
+            }else{
+                // GET
+                node.ref.tell(new Get.InitiateMsg(key), client);
+            }
+            try { Thread.sleep((long)(T*3)); } catch (InterruptedException e) {e.printStackTrace(); }
+        }
+
+
+        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
+        System.setOut(console);
+        try {
+            console.println(">> Press Enter to End <<");
+            System.in.read();
+        }catch (Exception e) {}
+        this.system.terminate();
+    // }
+
+    // public String check_consistency_file() {
+        // Client_name -> [(item_key, item_value)]
+        Map<String, List<Pair<Integer, String>>> history = new HashMap<>();
+        for (NamedClient client: clients) {
+            history.put(client.ref.toString(), new LinkedList<>());
+        }
+
+        Graph graph = new Graph();
+
+        try {
+            File cons = new File("seq_cons.txt");
+            Scanner scan = new Scanner(cons);
+            while (scan.hasNextLine()) {        // W node_id item_key version
+                if (scan.hasNext("W")) {
+                    scan.nextLine();
+                } else if (scan.hasNext("R")) {
+                    scan.next();
+                    String client = scan.next();
+                    int node_id = scan.nextInt();
+                    Integer item_key = scan.nextInt();
+                    String item_value = scan.next();
+
+                    history.get(client).add(new Pair<Integer,String>(item_key, item_value));
+
+                    graph.addNode(item_key.toString()+"."+item_value);
+                } else {
+                    String msg = scan.nextLine();
+                }
+
+            }
+            scan.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        for (NamedClient client: clients) {
+            Map<Integer, String> last_seen = new HashMap<>();
+            String cid = client.ref.toString();
+
+            List<Pair<Integer, String>> clientHistory = history.get(client.ref.toString());
+            for (Pair<Integer, String> read: clientHistory) {
+                int key = read.first();
+                String val = read.second();
+
+                String last = last_seen.get(key);
+                last_seen.put(key, val);
+                if (last==null) {
+                    continue;
+                }
+                if (!last.equals(val)) {
+                    graph.addEdge(key+"."+last, key+"."+val);
+                }
+            }
+        }
+
+        List<String> ordering = graph.check_topological_ordering();
+        if (ordering==null) {
+            return "Sequential inconsistency";
+        }
+
+        System.out.println("ORDERING:");
+        for (String e: ordering) {
+            System.out.print(e+" ");
+        }
+        System.out.println();
+
+        return "Sequentially consistent";
     }
 
     public String generateRandomString(int length) {

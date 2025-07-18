@@ -72,8 +72,7 @@ public class Node extends AbstractActor {
      * The class represents an entry of the local storage.
      */
     public class Entry {
-        /** String name of the data item.
-         */
+        /** String name of the data item. */
         public String value;
         public int version;
         public Entry (String value, int version) {
@@ -85,11 +84,9 @@ public class Node extends AbstractActor {
      * The class represents a peer in the network.
      */
     public static class Peer {
-        /** ID of the peer.
-         */
+        /** ID of the peer. */
         public int id;
-        /** Actor reference of the peer.
-         */
+        /** Actor reference of the peer. */
         public ActorRef ref;
         public Peer (int id, ActorRef ref) {
             this.id = id;
@@ -108,17 +105,13 @@ public class Node extends AbstractActor {
      * The class represents a set request (adding or updating a data item).
      */
     private class SetTransaction {
-        /** Key of data item.
-         */
+        /** Key of data item. */
         public final int key;
-        /** Value of the data item.
-         */
+        /** Value of the data item. */
         public final String value;
-        /** List of versions of the collected replies.
-         */
+        /** List of versions of the collected replies. */
         public final List<Integer> replies;
-        /** Actor reference of the client that made the set request.
-         */
+        /** Actor reference of the client that made the set request. */
         public final ActorRef client;
 
         /**
@@ -139,14 +132,11 @@ public class Node extends AbstractActor {
      * The class represents a get request (read a data item).
      */
     private class GetTransaction {
-        /** Key of the data item.
-         */
+        /** Key of the data item. */
         public final int key;
-        /** List of entries of the collected replies.
-         */
+        /** List of entries of the collected replies. */
         public final List<Entry> replies;
-        /** Actor reference of the client that made the get request.
-         */
+        /** Actor reference of the client that made the get request. */
         public final ActorRef client;
 
         /**
@@ -392,6 +382,7 @@ public class Node extends AbstractActor {
         // Success message creation and send
         if (latestEntry!=null){
             transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
+            System.out.println("R "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
         }else{
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
