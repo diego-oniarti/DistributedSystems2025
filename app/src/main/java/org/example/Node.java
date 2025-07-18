@@ -84,7 +84,7 @@ public class Node extends AbstractActor {
     /**
      * The class represents a peer in the network.
      */
-    public class Peer {
+    public static class Peer {
         /** ID of the peer.
          */
         public int id;
@@ -226,12 +226,12 @@ public class Node extends AbstractActor {
 
         // TimeoutMsg creation and send
         getContext().system().scheduler().scheduleOnce(
-            Duration.create(App.T, TimeUnit.SECONDS),
+            Duration.create(App.T, TimeUnit.MILLISECONDS),
             getSelf(),
             new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
 
-        // VersionRequest message send
+        // VersionRequestMsg send
         for (Peer peer: responsibles) {
             getContext().system().scheduler().scheduleOnce(
                 Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
@@ -305,7 +305,7 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
-        System.out.println("W "+this.id+" : "+msg.key);
+        System.out.println("W "+this.id+" "+msg.key+" "+msg.entry.version);
     }
     /**
      * Set.TimeoutMsg handler; removes the transaction and sends a FailMsg to the client.
@@ -337,7 +337,7 @@ public class Node extends AbstractActor {
 
         // Timeout message creation and send
         getContext().system().scheduler().scheduleOnce(
-            Duration.create(App.T, TimeUnit.SECONDS),
+            Duration.create(App.T, TimeUnit.MILLISECONDS),
             getSelf(),
             new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
         this.id_counter++;
@@ -751,4 +751,6 @@ public class Node extends AbstractActor {
  * TODO
  * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
  * 2. Only check if crashed on the handler of each method's init. Not all handlers
+ * 3. Move the message propagation delay to a constant
+ * 4. Move the message sending with delay in a separate function
  */

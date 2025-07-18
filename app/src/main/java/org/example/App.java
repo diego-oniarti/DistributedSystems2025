@@ -7,24 +7,21 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-import static org.example.AppDebug.SET;
+import static org.example.AppDebug.N_SET;
 
 public class App {
 
     public static final int N = 3;
     public static final int W = 2;
     public static final int R = 2;
-    public static final int T = 999;
-
-    public static final int START = 5;
-    public static final int T_END=T+1;
-    public static final int C = 2;
+    public static final int T = 100;
 
     public static void main(String[] args) throws FileNotFoundException {
 
         AppDebug d = new AppDebug("set_test");
-        AppDebug.ErrorDebug e = d.setFixedTest();
-        System.out.println(e.error);
+        d.setFixedTest();
 
+        String e = d.check_set_file();
+        System.out.println(e);
     }
 }

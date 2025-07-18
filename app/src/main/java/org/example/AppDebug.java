@@ -2,6 +2,8 @@ package org.example;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+
+import org.example.Node.Peer;
 import org.example.msg.Set;
 
 import java.io.File;
@@ -14,12 +16,15 @@ import static org.example.App.*;
 
 public class AppDebug {
 
-    public static final int SET = 4;
-    public static final int CRASH = 0;
+    public static final int N_SET = 40;
+    public static final int N_CRASH = 0;
+
+    public static final int STARTING_NODES = 5;
+    public static final int N_CLIENT = 2;
 
     public ActorSystem system;
     public List<ActorRef> clients;
-    public List<ActorRef> nodes;
+    public List<Peer> nodes;
 
     public AppDebug(String name) {
         this.system = ActorSystem.create(name);
@@ -27,36 +32,25 @@ public class AppDebug {
         this.nodes = new ArrayList<>();
     }
 
-    public class ErrorDebug{
-        String error;
-        boolean noError;
-
-        public ErrorDebug(String error, boolean noError) {
-            this.error = error;
-            this.noError = noError;
-        }
-    }
-
     public void addClients(){
-        for (int i = 0; i<C; i++){
+        for (int i = 0; i<N_CLIENT; i++){
             this.clients.add(this.system.actorOf(Client.props(generateRandomString(4))));
         }
     }
 
     public void addNodes(){
-        for (int i=0; i<START; i++) {
-            this.nodes.add(this.system.actorOf(Node.props((i+1)*10)));
+        for (int i=0; i<STARTING_NODES; i++) {
+            this.nodes.add(new Peer(i*10, this.system.actorOf(Node.props(i*10))));
         }
 
-        for (int i=0; i<START; i++) {
-            ActorRef n = this.nodes.get(i);
-            for (ActorRef node: this.nodes) {
-                node.tell(new Node.DebugAddNodeMsg(n, (i+1)*10), n);
+        for (Peer n1: this. nodes) {
+            for (Peer n2: this.nodes) {
+                n1.ref.tell(new Node.DebugAddNodeMsg(n2.ref, n2.id), n2.ref);
             }
         }
     }
 
-    public ErrorDebug setFixedTest(){
+    public void setFixedTest(){
 
         // setting of the network
         Random rng = new Random();
@@ -74,49 +68,59 @@ public class AppDebug {
         }
 
         // generate random data items and send a set message; wait until the messages are finished
-        int bound = (START+1)*10;
-        for (int i = 0; i<SET; i++){
+        int bound = (STARTING_NODES+1)*10;
+        for (int i = 0; i<N_SET; i++){
             int key = rng.nextInt(bound);
             String value = generateRandomString(3);
-            this.nodes.get(rng.nextInt(nodes.size())).tell(new Set.InitiateMsg(key, value), this.clients.get(0));
+            this.nodes.get(rng.nextInt(nodes.size())).ref
+                .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())));
+
+            try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
         }
 
-        try { Thread.sleep(T_END); } catch (InterruptedException e) {e.printStackTrace(); }
+        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
 
+        System.setOut(console);
         try {
             console.println(">> Press Enter to End <<");
             System.in.read();
         }catch (Exception e) {}
         this.system.terminate();
-        System.setOut(console);
+    }
 
+    public String check_set_file() {
         // read the file and check it
-        List<Integer> items = new ArrayList<>();
-        Map<Integer,List<Integer>> storage = new HashMap<>();
+        Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
+        Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
 
-        for (int i = 0; i<START; i++){
-            storage.put(((i+1)*10),new ArrayList<>());
+        for (Peer p : nodes) {
+            storage.put(p.id, new HashMap<>());
         }
 
-        int fails = 0;
+        int n_fails = 0;
 
         try {
             File set = new File("set.txt");
             Scanner scan = new Scanner(set);
-            while (scan.hasNextLine()) {
+            while (scan.hasNextLine()) {        // W node_id item_key version
                 if (scan.hasNext("W")){
-                    scan.next();
-                    int k = scan.nextInt();
-                    scan.next();
-                    int item = scan.nextInt();
-                    if (!items.contains(item)){
-                        items.add(item);
+                    scan.next();                // Discard W
+                    int node_id = scan.nextInt();
+                    int item_key = scan.nextInt();
+                    int item_version = scan.nextInt();
+
+                    // Register the new item or update the version
+                    boolean item_is_present = items.get(item_key)!=null;
+                    if (!item_is_present || item_is_present && items.get(item_key) < item_version){
+                        items.put(item_key, item_version);
                     }
-                    storage.get(k).add(item);
+
+                    // Register the new value for the node
+                    storage.get(node_id).put(item_key, item_version);
                 } else{
                     String msg = scan.nextLine();
                     if (msg.contains("Fail")){
-                        fails++;
+                        n_fails++;
                     }
                 }
             }
@@ -126,26 +130,33 @@ public class AppDebug {
         }
 
         // check number of data items
-        if (items.size()!=SET-fails){
-            return new ErrorDebug("Number of data items uncorrected",false);
+        int successful_writes = 0;
+        for (int version: items.values()) {
+            successful_writes += version;
+        }
+        if (successful_writes != N_SET-n_fails){
+            return "Number of data items uncorrected";
         }
 
         // check data items assignment
-        for (int e : items){
+        for (int item_key : items.keySet()){
+            // Find items's location in the ring
             int index = 0;
-            while (index < storage.size() && ((index+1)*10)<e){
+            while (index < storage.size() && nodes.get(index).id < item_key){
                 index++;
             }
-            if (index==storage.size()) { index = 0; }
+            if (index == storage.size()) { index = 0; }
+
+            // Check if all the responsibles have the item
             for (int i = 0; i<N; i++){
-                int sign = 1;
-                if (!storage.get((((i+index)%START)+1)*10).contains(e)){
-                    return new ErrorDebug("Node "+((((i+index)%START)+1)*10)+" doesn't contain data item "+e,false);
+                int responsible_id = nodes.get((index+i)%nodes.size()).id;
+                if (storage.get(responsible_id).get(item_key) == null) {
+                    return "Node " + responsible_id + " has no item " + item_key;
                 }
             }
         }
 
-        return new ErrorDebug("Set test is correct",true);
+        return "Set test is correct";
 
     }
 
