@@ -1,5 +1,7 @@
 package org.example;
 
+import static org.example.App.MSG_MAX_DELAY;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +51,74 @@ public class Node extends AbstractActor {
     private Random rnd;
     private int joiningQuorum;
 
+    /// UTILS
+
+    /**
+     * Schedules a message to be sent to a target with a random delay
+     * @param target {@link ActorRef} actor that will receive the message
+     * @param msg {@link Serializable} any message
+     * @param sender {@link ActorRef} actor sendig the message
+     * @param duration int maximum amount of milliseconds the message will take to propagate
+     */
+    private void sendMessageDelay(ActorRef target, Serializable msg, ActorRef sender, int duration) {
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(rnd.nextInt(duration), TimeUnit.MILLISECONDS),
+            target,
+            msg, getContext().system().dispatcher(),
+            sender
+        );
+    }
+
+    /**
+     * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration
+     */
+    private void sendMessageDelay(ActorRef target, Serializable msg, ActorRef sender) {
+        sendMessageDelay(target, msg, sender, MSG_MAX_DELAY);
+    }
+
+    /**
+     * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration and sender
+     */
+    private void sendMessageDelay(ActorRef target, Serializable msg) {
+        sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
+    }
+
+    /**
+     * Method to determine if a node is responsible for a data item.
+     *
+     * @param key key of the data item
+     * @param node Actor reference of the node of interest
+     * @return true if the node is responsible for the data item, false otherwise
+     */
+    private boolean isResponsible(int key, ActorRef node) {
+        List<Peer> peers = this.getResponsibles(key);
+        return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
+    }
+
+    /**
+     * Discovers the nodes that are responsible for a specific data item.
+     *
+     * @param key key of the data item
+     * @return the list of nodes that are responsibles for the data item
+     */
+    private List<Peer> getResponsibles(int key) {
+        List<Peer> ret = new LinkedList<>();
+        int i = 0;
+        // increase the index until we reach the end of the list, or we find the peer
+        // with an id that is major than the data item key
+        while (i<this.peers.size() && this.peers.get(i).id < key) {
+            i++;
+        }
+        // if we reached the end, we start from the beginning
+        if (i==this.peers.size()) { i = 0; }
+        // collect the N peers that are responsible for the data item (we treat the
+        // list like a "circular vector")
+        for (int j=0; j<App.N; j++) {
+            ret.add(this.peers.get((i+j)%this.peers.size()));
+        }
+        return ret;
+    }
+
     /// DEBUG
 
     public static class DebugAddNodeMsg implements Serializable {
@@ -80,6 +150,7 @@ public class Node extends AbstractActor {
             this.version = version;
         }
     }
+
     /**
      * The class represents a peer in the network.
      */
@@ -101,6 +172,7 @@ public class Node extends AbstractActor {
                     '}';
         }
     }
+
     /**
      * The class represents a set request (adding or updating a data item).
      */
@@ -128,6 +200,7 @@ public class Node extends AbstractActor {
             this.client = client;
         }
     }
+
     /**
      * The class represents a get request (read a data item).
      */
@@ -178,29 +251,6 @@ public class Node extends AbstractActor {
     /// SET(k, v)
 
     /**
-     * Discovers the nodes that are responsible for a specific data item.
-     *
-     * @param key key of the data item
-     * @return the list of nodes that are responsibles for the data item
-     */
-    private List<Peer> getResponsibles(int key) {
-        List<Peer> ret = new LinkedList<>();
-        int i = 0;
-        // increase the index until we reach the end of the list, or we find the peer
-        // with an id that is major than the data item key
-        while (i<this.peers.size() && this.peers.get(i).id < key) {
-            i++;
-        }
-        // if we reached the end, we start from the beginning
-        if (i==this.peers.size()) { i = 0; }
-        // collect the N peers that are responsible for the data item (we treat the
-        // list like a "circular vector")
-        for (int j=0; j<App.N; j++) {
-            ret.add(this.peers.get((i+j)%this.peers.size()));
-        }
-        return ret;
-    }
-    /**
      * Set.InitiateMsg handler; finds responsibles for the data item, sets a timeout and requests the version to
      * the responsibles.
      *
@@ -218,19 +268,18 @@ public class Node extends AbstractActor {
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.MILLISECONDS),
             getSelf(),
-            new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
+            new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(),
+            getSelf()
+        );
+
         this.id_counter++;
 
         // VersionRequestMsg send
         for (Peer peer: responsibles) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                peer.ref,
-                reqMsg, getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(peer.ref, reqMsg);
         }
     }
+
     /**
      * Set.VersionRequestMsg handler; if the node already contains the data item, it returns its version,
      *  otherwise it returns -1; it sends the result to the sender.
@@ -279,14 +328,10 @@ public class Node extends AbstractActor {
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         // UpdateEntry message send
         for (Peer responsible: responsibles) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                responsible.ref,
-                updateMsg, getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(responsible.ref, updateMsg);
         }
     }
+
     /**
      * Set.UpdateEntryMsg handler; it inserts the updated entry in the local storage.
      *
@@ -297,6 +342,7 @@ public class Node extends AbstractActor {
         this.storage.put(msg.key, msg.entry);
         System.out.println("W "+this.id+" "+msg.key+" "+msg.entry.version);
     }
+
     /**
      * Set.TimeoutMsg handler; removes the transaction and sends a FailMsg to the client.
      *
@@ -312,6 +358,7 @@ public class Node extends AbstractActor {
     }
 
     /// GET(k)
+
     /**
      * Get.InitiateMsg handler; sets a timeout and sends a get request to all the responsibles for the data item.
      *
@@ -329,19 +376,17 @@ public class Node extends AbstractActor {
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.MILLISECONDS),
             getSelf(),
-            new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(), getSelf());
+            new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(),
+            getSelf()
+        );
         this.id_counter++;
 
         // EntryRequest message send
         for (Peer peer: responsibles) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                peer.ref,
-                reqMsg, getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(peer.ref, reqMsg);
         }
     }
+
     /**
      * Get.EntryRequestMsg handler; takes the entry from the local storage and sends it to the coordinator.
      *
@@ -351,13 +396,9 @@ public class Node extends AbstractActor {
         if (this.crashed) return;
         Entry entry = this.storage.get(msg.key);
         // EntryResponse message creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            getSender(),
-            new Get.EntryResponseMsg(entry, msg.transacition_id), getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(getSender(), new Get.EntryResponseMsg(entry, msg.transacition_id));
     }
+
     /**
      *  Get.EntryResponseMsg handler; checks the quorum ands sends the most updated data item to the client
      *  with a Get.SuccessMsg.
@@ -388,6 +429,7 @@ public class Node extends AbstractActor {
         }
 
     }
+
     /**
      * Get.TimeoutMsg handler; removes the transaction from the pending ones and sends to the client a Get.FailMsg.
      *
@@ -406,26 +448,18 @@ public class Node extends AbstractActor {
 
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            getSender(),
-            new Join.TopologyMsg(this.peers), getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
     }
+
     private void receiveTopology(Join.TopologyMsg msg) {
         if (this.crashed) return;
         this.peers.addAll(msg.peers);
         List<Peer> neighbors = this.getResponsibles(this.id);
         for (Peer neighbor: neighbors) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                neighbor.ref,
-                new Join.ResponsibilityRequestMsg(this.id), getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(neighbor.ref, new Join.ResponsibilityRequestMsg(this.id));
         }
     }
+
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
         if (this.crashed) return;
         // TODO: Trovare un algoritmo più elegante
@@ -467,13 +501,9 @@ public class Node extends AbstractActor {
 
         }
 
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            getSender(),
-            new Join.ResponsibilityResponseMsg(ret), getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(getSender(), new Join.ResponsibilityResponseMsg(ret));
     }
+
     private void receiveResponsibilityRepsonse(Join.ResponsibilityResponseMsg msg) {
         if (this.crashed) return;
         if (joiningQuorum >= App.R) {return;}
@@ -490,13 +520,7 @@ public class Node extends AbstractActor {
                 this.peers.stream(),
                 Stream.of(new Peer(this.id, getSelf()))
             ).forEach(peer -> {
-                    getContext().system().scheduler().scheduleOnce(
-                        Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                        peer.ref,
-                        new Join.AnnouncePresenceMsg(this.id),
-                        getContext().system().dispatcher(),
-                        getSelf()
-                    );
+                    sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
                 });
         }
     }
@@ -525,13 +549,7 @@ public class Node extends AbstractActor {
         if (this.crashed) return;
         AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
         for (Peer peer: this.peers) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                peer.ref,
-                announcementMsg,
-                getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(peer.ref, announcementMsg);
         }
     }
 
@@ -557,13 +575,7 @@ public class Node extends AbstractActor {
 
         // Send the elements
         for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                bucket.getKey().ref,
-                new TransferItemsMsg(bucket.getValue()),
-                getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(bucket.getKey().ref, new TransferItemsMsg(bucket.getValue()));
         }
     }
 
@@ -599,14 +611,9 @@ public class Node extends AbstractActor {
     private void receiveRecovery(Crash.RecoveryMsg msg) {
         this.crashed=false;
         // Crash.TopologyRequestMsg creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            msg.helper,
-            new Crash.TopologyRequestMsg(),
-            getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(msg.helper, new Crash.TopologyRequestMsg());
     }
+
     /**
      * Crash.TopologyRequestMsg handler; it sends the network topology to the recovered node.
      *
@@ -615,14 +622,9 @@ public class Node extends AbstractActor {
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
         if (this.crashed) return;
         // Crash.TopologyResponseMsg creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            getSender(),
-            new Crash.TopologyResponseMsg(this.peers),
-            getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(getSender(), new Crash.TopologyResponseMsg(this.peers));
     }
+
     /**
      * Crash.TopologyResponseMsg handler; it deletes elements that are no more under the recovered node control
      * and ask for elements to the nodes that own the recovered node data items.
@@ -650,15 +652,10 @@ public class Node extends AbstractActor {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
             // Crash.RequestDataMsg send
-            getContext().system().scheduler().scheduleOnce(
-                Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-                this.peers.get(j).ref,
-                requestDataMsg,
-                getContext().system().dispatcher(),
-                getSelf()
-            );
+            sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
         }
     }
+
     /**
      * Crash.RequestDataMsg handler; it sends the data the recovered node is responsible for.
      *
@@ -673,14 +670,9 @@ public class Node extends AbstractActor {
             }
         }
         // Crash.DataResponseMsg creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(rnd.nextInt(100), TimeUnit.MILLISECONDS),
-            getSender(),
-            new Crash.DataResponseMsg(data),
-            getContext().system().dispatcher(),
-            getSelf()
-        );
+        sendMessageDelay(getSender(), new Crash.DataResponseMsg(data));
     }
+
     /**
      * Crash.DataResponseMsg handler; inserts/updates the data items the recovered node is responsible for.
      *
@@ -692,18 +684,6 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
-    }
-
-    /**
-     * Method to determine if a node is responsible for a data item.
-     *
-     * @param key key of the data item
-     * @param node Actor reference of the node of interest
-     * @return true if the node is responsible for the data item, false otherwise
-     */
-    private boolean isResponsible(int key, ActorRef node) {
-        List<Peer> peers = this.getResponsibles(key);
-        return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
     }
 
 	@Override
@@ -742,6 +722,4 @@ public class Node extends AbstractActor {
  * TODO
  * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
  * 2. Only check if crashed on the handler of each method's init. Not all handlers
- * 3. Move the message propagation delay to a constant
- * 4. Move the message sending with delay in a separate function
  */

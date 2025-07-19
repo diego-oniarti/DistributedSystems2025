@@ -15,6 +15,7 @@ public class App {
     public static final int W = 2;
     public static final int R = 2;
     public static final int T = 500;
+    public static final int MSG_MAX_DELAY = 100;
 
     public static void main(String[] args) throws FileNotFoundException {
 
