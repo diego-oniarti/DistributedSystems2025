@@ -2,6 +2,7 @@ package org.example.shared;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +42,10 @@ public class Graph {
             S.remove(n);
 
             L.add(n);
-            for (String m: edges.get(n)) {
-                edges.get(n).remove(m);
+            Iterator<String> it = edges.get(n).iterator();
+            while (it.hasNext()) {
+                String m = it.next();
+                it.remove();
                 if (!has_incomming(m)) {
                     S.add(m);
                 }

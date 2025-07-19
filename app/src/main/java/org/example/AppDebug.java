@@ -177,7 +177,7 @@ public class AppDebug {
             e.printStackTrace();
         }
 
-        final int N_OP = 20;
+        final int N_OP = 250;
 
         int bound = (STARTING_NODES+1)*10;
 
