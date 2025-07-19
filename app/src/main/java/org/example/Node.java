@@ -27,26 +27,19 @@ public class Node extends AbstractActor {
 
     /// ATTRIBUTES
 
-    /** ID of the node.
-     */
+    /** ID of the node. */
     public final int id;
-    /** Contains the data items associated with the node.
-     */
+    /** Contains the data items associated with the node. */
     private HashMap<Integer, Entry> storage;
-    /** List of all the nodes in the network.
-     */
+    /** List of all the nodes in the network. */
     private List<Peer> peers;
-    /** List of set requests (write) that the node is managing.
-     */
+    /** List of set requests (write) that the node is managing. */
     private HashMap<Integer, SetTransaction> setTransactions;
-    /** List of get requests (read) that the node is managing.
-     */
+    /** List of get requests (read) that the node is managing. */
     private HashMap<Integer, GetTransaction> getTransactions;
-    /** Number of transactions that the node is managing.
-     */
+    /** Number of transactions that the node is managing. */
     private int id_counter;
-    /** Boolean value, if true the node crashed.
-     */
+    /** Boolean value, if true the node crashed. */
     private boolean crashed;
     private Random rnd;
     private int joiningQuorum;
@@ -168,8 +161,8 @@ public class Node extends AbstractActor {
         @Override
         public String toString() {
             return "Peer{" +
-                    "id=" + id +
-                    '}';
+            "id=" + id +
+            '}';
         }
     }
 
@@ -485,7 +478,7 @@ public class Node extends AbstractActor {
         for (HashMap.Entry<Integer, Entry> dataItem: storage.entrySet()) {
             int key = dataItem.getKey();
             Entry entry = dataItem.getValue();
-            
+
             int i = 0;
             while (i<allNodes.size() && allNodes.get(i).id < key) {
                 i++;
@@ -544,7 +537,7 @@ public class Node extends AbstractActor {
     }
 
     // LEAVE
-    
+
     private void receiveLeave(Leave.InitiateMsg msg) {
         if (this.crashed) return;
         AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
@@ -632,6 +625,7 @@ public class Node extends AbstractActor {
      * @param msg Crash.TopologyResponseMsg message
      */
     private void receiveTopologyResponse(Crash.TopologyResponseMsg msg) {
+        if (this.crashed) return;
         this.peers = msg.peers;
 
         // Delete elements the recovered node will no more be responsible for
@@ -662,6 +656,7 @@ public class Node extends AbstractActor {
      * @param msg Crash.RequestDataMsg message
      */
     private void receiveDataRequest(Crash.RequestDataMsg msg) {
+        if (this.crashed) return;
         // find elements the recovered node is responsible for
         List<Pair<Integer, Entry>> data = new LinkedList<>();
         for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
@@ -679,6 +674,7 @@ public class Node extends AbstractActor {
      * @param msg Crash.DataResponseMsg message
      */
     private void receiverDataResponse(Crash.DataResponseMsg msg) {
+        if (this.crashed) return;
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
@@ -686,8 +682,8 @@ public class Node extends AbstractActor {
         }
     }
 
-	@Override
-	public Receive createReceive() {
+    @Override
+    public Receive createReceive() {
         return receiveBuilder()
         .match(Set.InitiateMsg.class, this::receiveSet)
         .match(Set.VersionRequestMsg.class, this::receiveVersionRequest)
@@ -708,7 +704,7 @@ public class Node extends AbstractActor {
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
         .match(Leave.TransferItemsMsg.class, this::receiveTransferItems)
         .build();
-	}
+    }
 }
 
 /**
@@ -721,5 +717,4 @@ public class Node extends AbstractActor {
 /* 
  * TODO
  * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
- * 2. Only check if crashed on the handler of each method's init. Not all handlers
  */
