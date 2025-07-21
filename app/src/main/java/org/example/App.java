@@ -25,8 +25,12 @@ public class App {
         // String e = d.check_set_file();
         // System.out.println(e);
 
-        String e = d.sequentialConsistencyTest();
-        System.out.println(e);
+        // d.sequentialConsistencyTest();
+        // String e = d.check_consistency_file();
+        // System.out.println(e);
 
+        d.setDynamicTest();
+        String e = d.check_dynamic_set_file();
+        System.out.println(e);
     }
 }

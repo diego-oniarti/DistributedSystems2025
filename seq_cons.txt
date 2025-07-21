@@ -1,0 +1,58 @@
+qfrl : Success
+W 40 19 1
+W 20 19 1
+W 30 19 1
+qfrl : Success
+W 0 33 1
+W 40 33 1
+W 10 33 1
+qfrl: Success [19: saaea]
+R Actor[akka://set_test/user/$b#-931469840] 30 19 saaea
+qfrl : Success
+W 0 33 2
+W 40 33 2
+W 10 33 2
+jqup: Success [33: najjn]
+R Actor[akka://set_test/user/$a#282457084] 10 33 najjn
+qfrl: Fail [27]
+jqup : Success
+W 20 19 2
+W 30 19 2
+W 40 19 2
+qfrl: Fail [27]
+qfrl : Success
+W 40 27 1
+W 0 27 1
+W 30 27 1
+jqup: Success [27: weblk]
+R Actor[akka://set_test/user/$a#282457084] 0 27 weblk
+jqup : Success
+W 0 33 3
+W 10 33 3
+W 40 33 3
+jqup: Success [19: cbalx]
+R Actor[akka://set_test/user/$a#282457084] 30 19 cbalx
+jqup : Success
+W 0 26 1
+W 40 26 1
+W 30 26 1
+qfrl: Success [26: byivv]
+R Actor[akka://set_test/user/$b#-931469840] 40 26 byivv
+jqup: Success [19: cbalx]
+R Actor[akka://set_test/user/$a#282457084] 30 19 cbalx
+jqup: Success [27: weblk]
+R Actor[akka://set_test/user/$a#282457084] 0 27 weblk
+qfrl: Success [19: cbalx]
+R Actor[akka://set_test/user/$b#-931469840] 20 19 cbalx
+jqup : Success
+W 40 19 3
+W 20 19 3
+W 30 19 3
+qfrl : Success
+W 0 26 2
+W 30 26 2
+W 40 26 2
+qfrl : Success
+W 40 33 4
+W 10 33 4
+W 0 33 4

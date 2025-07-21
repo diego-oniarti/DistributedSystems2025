@@ -1,0 +1,35 @@
+szvk : Success
+W 0 22 1
+W 30 22 1
+W 40 22 1
+J 50
+D 0 22
+J 60
+szvk : Success
+W 0 132 1
+W 10 132 1
+W 20 132 1
+A 70 132 1
+D 70 132
+J 70
+szvk : Success
+W 70 51 1
+W 60 51 1
+W 0 51 1
+szvk : Success
+W 20 80 1
+W 10 80 1
+W 0 80 1
+shtq : Success
+W 50 46 1
+W 60 46 1
+W 70 46 1
+A 80 132 1
+D 80 132
+J 80
+D 0 51
+D 20 80
+A 90 132 1
+D 90 132
+J 90
+D 10 80

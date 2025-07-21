@@ -6,6 +6,7 @@ import akka.japi.Pair;
 
 import org.example.Node.Peer;
 import org.example.msg.Get;
+import org.example.msg.Join;
 import org.example.msg.Set;
 import org.example.shared.Graph;
 import org.example.shared.NamedClient;
@@ -20,8 +21,10 @@ import static org.example.App.*;
 
 public class AppDebug {
 
-    public static final int N_SET = 40;
+    public static final int N_SET = 10;
     public static final int N_CRASH = 0;
+    public static final int N_JOIN = 0;
+    public static final int N_LEAVE = 0;
 
     public static final int STARTING_NODES = 5;
     public static final int N_CLIENT = 2;
@@ -144,7 +147,7 @@ public class AppDebug {
 
         // check data items assignment
         for (int item_key : items.keySet()){
-            // Find items's location in the ring
+            // Find items' location in the ring
             int index = 0;
             while (index < storage.size() && nodes.get(index).id < item_key){
                 index++;
@@ -164,7 +167,7 @@ public class AppDebug {
 
     }
 
-    public String sequentialConsistencyTest() {
+    public void sequentialConsistencyTest() {
         // setting of the network
         Random rng = new Random();
 
@@ -177,7 +180,7 @@ public class AppDebug {
             e.printStackTrace();
         }
 
-        final int N_OP = 250;
+        final int N_OP = 20;
 
         int bound = (STARTING_NODES+1)*10;
 
@@ -210,9 +213,9 @@ public class AppDebug {
             System.in.read();
         }catch (Exception e) {}
         this.system.terminate();
-    // }
+    }
 
-    // public String check_consistency_file() {
+     public String check_consistency_file() {
         // Client_name -> [(item_key, item_value)]
         Map<String, List<Pair<Integer, String>>> history = new HashMap<>();
         for (NamedClient client: clients) {
@@ -281,6 +284,134 @@ public class AppDebug {
         return "Sequentially consistent";
     }
 
+    public void setDynamicTest(){
+
+        Random rng = new Random();
+
+        // create debug file and direct the console output to it
+        PrintStream console = System.out;
+        try{
+            PrintStream fileOut = new PrintStream(new FileOutputStream("set_dynamic.txt"));
+            System.setOut(fileOut);
+        }catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        final int N_OP = 10;
+        int bound = (STARTING_NODES+N_OP+1)*10;
+        int n_joins = 0;
+        List<Peer> old_net = new ArrayList<>();
+        old_net.addAll(nodes);
+
+        for (int i=0; i<N_OP; i++) {
+
+            Peer node = old_net.get(rng.nextInt(old_net.size()));
+
+            if (rng.nextBoolean()) {
+                // SET
+                int key = rng.nextInt(bound);
+                String value = generateRandomString(5);
+                ActorRef client = clients.get(rng.nextInt(clients.size())).ref;
+                node.ref.tell(new Set.InitiateMsg(key, value), client);
+            }else{
+                // JOIN
+                Peer joining_node = new Peer((STARTING_NODES+n_joins)*10,this.system.actorOf(Node.props((STARTING_NODES+n_joins)*10)));
+                nodes.add(joining_node);
+                node.ref.tell(new Join.InitiateMsg(), joining_node.ref);
+                n_joins++;
+            }
+            try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
+        }
+
+        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
+
+        System.setOut(console);
+        try {
+            console.println(">> Press Enter to End <<");
+            System.in.read();
+        }catch (Exception e) {}
+        this.system.terminate();
+
+    }
+
+    public String check_dynamic_set_file(){
+
+        // read the file and check it
+        Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
+        Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
+
+        for (Peer p : nodes) {
+            storage.put(p.id, new HashMap<>());
+        }
+
+        // TODO: avoid duplicated code
+        try {
+            File set = new File("set_dynamic.txt");
+            Scanner scan = new Scanner(set);
+            while (scan.hasNextLine()) {                // W node_id item_key version
+                if (scan.hasNext("W")){
+                    scan.next();                        // Discard W
+                    int node_id = scan.nextInt();
+                    int item_key = scan.nextInt();
+                    int item_version = scan.nextInt();
+
+                    // Register the new item or update the version
+                    boolean item_is_present = items.get(item_key)!=null;
+                    if (!item_is_present || item_is_present && items.get(item_key) < item_version){
+                        items.put(item_key, item_version);
+                    }
+
+                    // Register the new value for the node
+                    storage.get(node_id).put(item_key, item_version);
+                }else if (scan.hasNext("A")) {   //  A node_id item_key version
+                    scan.next();                        // Discard W
+                    int node_id = scan.nextInt();
+                    int item_key = scan.nextInt();
+                    int item_version = scan.nextInt();
+                    storage.get(node_id).put(item_key, item_version);
+                }else if (scan.hasNext("D")) {   //  D node_id item_key
+                    scan.next();                        // Discard W
+                    int node_id = scan.nextInt();
+                    int item_key = scan.nextInt();
+                    storage.get(node_id).remove(item_key);
+                }else{
+                    scan.nextLine();
+                }
+            }
+            scan.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        // check data items assignment
+        for (int item_key : items.keySet()){
+            // Find items' location in the ring
+            int index = 0;
+            while (index < storage.size() && nodes.get(index).id < item_key){
+                index++;
+            }
+            if (index == storage.size()) { index = 0; }
+
+            // Check if all the responsibles have the item
+            for (int i = 0; i<N; i++){
+                int responsible_id = nodes.get((index+i)%nodes.size()).id;
+                if (storage.get(responsible_id).get(item_key) == null) {
+                    return "Node " + responsible_id + " has no item " + item_key;
+                }else{
+                    // remove the element if present
+                    storage.remove(responsible_id).get(item_key);
+                }
+            }
+        }
+
+        if (!storage.isEmpty()){
+            return "Some node has data items it is no longer responsible for";
+        }
+
+        return "Dynamic set test is correct";
+    }
+
+
     public String generateRandomString(int length) {
         String characterSet = "abcdefghijklmnopqrstuvwxyz";
         StringBuilder sb = new StringBuilder();
@@ -292,3 +423,8 @@ public class AppDebug {
         return sb.toString();
     }
 }
+
+/*
+ * TODO
+ * 1. Modify all tests after having managed clients problem
+ */

@@ -16,7 +16,6 @@ import org.example.msg.Set;
 import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
-import org.example.msg.Join.TopologyMsg;
 import org.example.msg.Leave.AnnounceLeavingMsg;
 import org.example.msg.Leave.TransferItemsMsg;
 
@@ -47,7 +46,8 @@ public class Node extends AbstractActor {
     /// UTILS
 
     /**
-     * Schedules a message to be sent to a target with a random delay
+     * Schedules a message to be sent to a target with a random delay.
+     *
      * @param target {@link ActorRef} actor that will receive the message
      * @param msg {@link Serializable} any message
      * @param sender {@link ActorRef} actor sendig the message
@@ -61,21 +61,18 @@ public class Node extends AbstractActor {
             sender
         );
     }
-
     /**
      * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration
      */
     private void sendMessageDelay(ActorRef target, Serializable msg, ActorRef sender) {
         sendMessageDelay(target, msg, sender, MSG_MAX_DELAY);
     }
-
     /**
      * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration and sender
      */
     private void sendMessageDelay(ActorRef target, Serializable msg) {
         sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
     }
-
     /**
      * Method to determine if a node is responsible for a data item.
      *
@@ -87,7 +84,6 @@ public class Node extends AbstractActor {
         List<Peer> peers = this.getResponsibles(key);
         return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
     }
-
     /**
      * Discovers the nodes that are responsible for a specific data item.
      *
@@ -439,11 +435,22 @@ public class Node extends AbstractActor {
 
     // JOIN
 
+    /**
+     * Join.InitiateMsg handler; sends the network topology to the joining node.
+     *
+     * @param msg Join.InitiateMsg message
+     */
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
+        // Join.TopologyMsg creation and send
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
     }
-
+    /**
+     * Join.TopologyMsg handler; the joining node receives the network topology and sends a message to get the data
+     * it is responsible for.
+     *
+     * @param msg Join.TopologyMsg message
+     */
     private void receiveTopology(Join.TopologyMsg msg) {
         if (this.crashed) return;
         this.peers.addAll(msg.peers);
@@ -452,15 +459,22 @@ public class Node extends AbstractActor {
             sendMessageDelay(neighbor.ref, new Join.ResponsibilityRequestMsg(this.id));
         }
     }
-
+    /**
+     * Join.ResponsibilityRequestMsg handler; it finds the data items the joining node is responsible for and sends them
+     * to it.
+     *
+     * @param msg Join.ResponsibilityRequestMsg message
+     */
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
         if (this.crashed) return;
         // TODO: Trovare un algoritmo più elegante
+        // TODO: Insert this algorithm in a separate method
 
         int newId = msg.nodeId;
         ActorRef newRef = getSender();
 
         // Get a new list of all the nodes which also contains the new one
+        // FIXME: can we simply create a list, add to it all elements of this.peers (that is ordered) and do like ReceivePresence.. method?
         HashMap<Integer, Entry> ret = new HashMap<>();
         List<Peer> allNodes = new LinkedList<Peer>();
         int last_id = -1;
@@ -475,6 +489,7 @@ public class Node extends AbstractActor {
             allNodes.add(new Peer(newId, newRef));
         }
 
+        // Find the data the joining node is responsible for
         for (HashMap.Entry<Integer, Entry> dataItem: storage.entrySet()) {
             int key = dataItem.getKey();
             Entry entry = dataItem.getValue();
@@ -494,46 +509,70 @@ public class Node extends AbstractActor {
 
         }
 
+        // Join.ResponsibilityResponseMsg creation and send
         sendMessageDelay(getSender(), new Join.ResponsibilityResponseMsg(ret));
     }
-
-    private void receiveResponsibilityRepsonse(Join.ResponsibilityResponseMsg msg) {
+    /**
+     * Join.ResponsibilityResponseMsg handler; it checks the quorum, inserts the most-up-to-date data items in the
+     * joining node local storage and announces the presence of the new node to the others.
+     * @param msg
+     */
+    private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg) {
         if (this.crashed) return;
+        // check quorum
         if (joiningQuorum >= App.R) {return;}
+        // insert most-up-to-date data items
         for (HashMap.Entry<Integer, Entry> entry: msg.responsibility.entrySet()) {
             Entry currentValue = storage.get(entry.getKey());
             if (currentValue == null || currentValue.version < entry.getValue().version) {
                 this.storage.put(entry.getKey(), entry.getValue());
+                System.out.println("A "+this.id+" "+entry.getKey()+" "+entry.getValue().version);
             }
         }
         joiningQuorum++;
 
+        // we reach the quorum
         if (joiningQuorum>=App.R) {
             Stream.concat(
                 this.peers.stream(),
                 Stream.of(new Peer(this.id, getSelf()))
             ).forEach(peer -> {
+                    // Join.AnnouncePresenceMsg creation and send
                     sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
                 });
         }
     }
-
+    /**
+     * Join.AnnouncePresenceMsg handler; the nodes insert the joining node in the network topology and remove the data
+     * they are no longer responsible for.
+     *
+     * @param msg Join.AnnouncePresenceMsg message
+     */
     private void ReceivePresenceAnnouncement(Join.AnnouncePresenceMsg msg) {
         if (this.crashed) return;
         // Add the new node to the list of peers
         int i=0;
-        while (msg.id > this.peers.get(i).id) {
+        while (i<this.peers.size() && msg.id > this.peers.get(i).id) {
             i++;
         }
         this.peers.add(i, new Peer(msg.id, getSender()));
 
         // Remove the data you're no longer responsible for
-        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+        Iterator<Map.Entry<Integer, Entry>> it = this.storage.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, Entry> entry = it.next();
             List<Peer> responsibles = this.getResponsibles(entry.getKey());
-            if (!responsibles.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
-                this.storage.remove(entry.getKey());
+            if (!responsibles.stream().anyMatch(p -> p.id == this.id)) {
+                it.remove();
+                System.out.println("D "+this.id+" "+entry.getKey());
             }
         }
+
+        // debug
+        if (msg.id==this.id){
+            System.out.println("J "+this.id);
+        }
+
     }
 
     // LEAVE
@@ -606,7 +645,6 @@ public class Node extends AbstractActor {
         // Crash.TopologyRequestMsg creation and send
         sendMessageDelay(msg.helper, new Crash.TopologyRequestMsg());
     }
-
     /**
      * Crash.TopologyRequestMsg handler; it sends the network topology to the recovered node.
      *
@@ -649,7 +687,6 @@ public class Node extends AbstractActor {
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
         }
     }
-
     /**
      * Crash.RequestDataMsg handler; it sends the data the recovered node is responsible for.
      *
@@ -698,7 +735,7 @@ public class Node extends AbstractActor {
         .match(Join.InitiateMsg.class, this::receiveJoinInitiate)
         .match(Join.TopologyMsg.class, this::receiveTopology)
         .match(Join.ResponsibilityRequestMsg.class, this::receiveResponsibilityRequest)
-        .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsibilityRepsonse)
+        .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsibilityResponse)
         .match(Join.AnnouncePresenceMsg.class, this::ReceivePresenceAnnouncement)
         .match(Leave.InitiateMsg.class, this::receiveLeave)
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
@@ -717,4 +754,5 @@ public class Node extends AbstractActor {
 /* 
  * TODO
  * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
+ * 2. CHECK all crash condition, sometimes they are not needed for project assumptions
  */
