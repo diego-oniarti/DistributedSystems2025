@@ -43,6 +43,8 @@ public class Node extends AbstractActor {
     private Random rnd;
     private int joiningQuorum;
 
+    private ActorRef coordinator;
+
     /// UTILS
 
     /**
@@ -110,19 +112,16 @@ public class Node extends AbstractActor {
 
     /// DEBUG
 
-    public static class DebugAddNodeMsg implements Serializable {
-        public final ActorRef ref;
-        public final int id;
-        public DebugAddNodeMsg(ActorRef ref, int id) {
-            this.ref = ref;
-            this.id = id;
-        }
-    }
-    private void receiveDebugAddNode(DebugAddNodeMsg msg) {
+
+    private void receiveDebugAddNode(Debug.AddNodeMsg msg) {
         // Find the index where to put the new peer and insert it
         int i = 0;
         while (i<this.peers.size() && this.peers.get(i).id<msg.id) { i++; }
         this.peers.add(i, new Peer(msg.id, msg.ref));
+    }
+
+    private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
+        this.coordinator = msg.coordinator;
     }
 
     /// CLASSES
@@ -343,6 +342,9 @@ public class Node extends AbstractActor {
         // Set.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
+
+            // debug
+            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
     }
 
@@ -412,9 +414,14 @@ public class Node extends AbstractActor {
         // Success message creation and send
         if (latestEntry!=null){
             transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
+            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
+
+            // debug
+            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
             System.out.println("R "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
         }else{
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
 
     }
@@ -430,6 +437,7 @@ public class Node extends AbstractActor {
         // Get.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
     }
 
@@ -468,13 +476,11 @@ public class Node extends AbstractActor {
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
         if (this.crashed) return;
         // TODO: Trovare un algoritmo più elegante
-        // TODO: Insert this algorithm in a separate method
 
         int newId = msg.nodeId;
         ActorRef newRef = getSender();
 
         // Get a new list of all the nodes which also contains the new one
-        // FIXME: can we simply create a list, add to it all elements of this.peers (that is ordered) and do like ReceivePresence.. method?
         HashMap<Integer, Entry> ret = new HashMap<>();
         List<Peer> allNodes = new LinkedList<Peer>();
         int last_id = -1;
@@ -548,7 +554,7 @@ public class Node extends AbstractActor {
      *
      * @param msg Join.AnnouncePresenceMsg message
      */
-    private void ReceivePresenceAnnouncement(Join.AnnouncePresenceMsg msg) {
+    private void receivePresenceAnnouncement(Join.AnnouncePresenceMsg msg) {
         if (this.crashed) return;
         // Add the new node to the list of peers
         int i=0;
@@ -569,6 +575,9 @@ public class Node extends AbstractActor {
         }
 
         // debug
+
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
+
         if (msg.id==this.id){
             System.out.println("J "+this.id);
         }
@@ -592,7 +601,7 @@ public class Node extends AbstractActor {
 
         HashMap<Peer, LinkedList<Pair<Integer, Entry>>> buckets = new HashMap<>();
 
-        // Decide whilch elements to send to each peer
+        // Decide which elements to send to each peer
         for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
             List<Peer> newResponsibles = this.getResponsibles(entry.getKey());
             for (Peer newResponsible: newResponsibles) {
@@ -608,6 +617,7 @@ public class Node extends AbstractActor {
         // Send the elements
         for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
             sendMessageDelay(bucket.getKey().ref, new TransferItemsMsg(bucket.getValue()));
+            coordinator.tell(new Debug.IncreaseOngoingMsg(bucket.getKey().ref),ActorRef.noSender());
         }
     }
 
@@ -618,6 +628,8 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
+
     }
 
     /// CRASH
@@ -630,6 +642,9 @@ public class Node extends AbstractActor {
     private void receiveCrash(Crash.InitiateMsg msg) {
         if (this.crashed) return;
         this.crashed = true;
+
+        // debug
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
     }
 
     /// RECOVERY
@@ -685,6 +700,7 @@ public class Node extends AbstractActor {
             int j = (i+myIndex+this.peers.size())%this.peers.size();
             // Crash.RequestDataMsg send
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
+            coordinator.tell(new Debug.IncreaseOngoingMsg(this.peers.get(j).ref),ActorRef.noSender());
         }
     }
     /**
@@ -717,6 +733,7 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
     }
 
     @Override
@@ -727,7 +744,7 @@ public class Node extends AbstractActor {
         .match(Set.VersionResponseMsg.class, this::receiveVersionResponse)
         .match(Set.UpdateEntryMsg.class, this::receiveUpdateMessage)
         .match(Set.TimeoutMsg.class,this::receiveSetTimeout)
-        .match(DebugAddNodeMsg.class, this::receiveDebugAddNode)
+        .match(Debug.AddNodeMsg.class, this::receiveDebugAddNode)
         .match(Get.InitiateMsg.class, this::receiveGet)
         .match(Get.EntryRequestMsg.class, this::receiveEntryRequest)
         .match(Get.EntryResponseMsg.class, this::receiveEntryResponse)
@@ -736,10 +753,11 @@ public class Node extends AbstractActor {
         .match(Join.TopologyMsg.class, this::receiveTopology)
         .match(Join.ResponsibilityRequestMsg.class, this::receiveResponsibilityRequest)
         .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsibilityResponse)
-        .match(Join.AnnouncePresenceMsg.class, this::ReceivePresenceAnnouncement)
+        .match(Join.AnnouncePresenceMsg.class, this::receivePresenceAnnouncement)
         .match(Leave.InitiateMsg.class, this::receiveLeave)
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
         .match(Leave.TransferItemsMsg.class, this::receiveTransferItems)
+        .match(Debug.AnnounceCoordinator.class, this::receiveAnnounceCoordinator)
         .build();
     }
 }

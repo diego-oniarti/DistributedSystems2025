@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.japi.Pair;
 
 import org.example.Node.Peer;
+import org.example.msg.Debug;
 import org.example.msg.Get;
 import org.example.msg.Join;
 import org.example.msg.Set;
@@ -56,7 +57,7 @@ public class AppDebug {
 
         for (Peer n1: this. nodes) {
             for (Peer n2: this.nodes) {
-                n1.ref.tell(new Node.DebugAddNodeMsg(n2.ref, n2.id), n2.ref);
+                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
             }
         }
     }
