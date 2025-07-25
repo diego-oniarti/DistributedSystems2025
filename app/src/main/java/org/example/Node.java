@@ -63,18 +63,21 @@ public class Node extends AbstractActor {
             sender
         );
     }
+
     /**
      * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration
      */
     private void sendMessageDelay(ActorRef target, Serializable msg, ActorRef sender) {
         sendMessageDelay(target, msg, sender, MSG_MAX_DELAY);
     }
+
     /**
      * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration and sender
      */
     private void sendMessageDelay(ActorRef target, Serializable msg) {
         sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
     }
+
     /**
      * Method to determine if a node is responsible for a data item.
      *
@@ -86,6 +89,7 @@ public class Node extends AbstractActor {
         List<Peer> peers = this.getResponsibles(key);
         return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
     }
+
     /**
      * Discovers the nodes that are responsible for a specific data item.
      *
@@ -118,6 +122,9 @@ public class Node extends AbstractActor {
         int i = 0;
         while (i<this.peers.size() && this.peers.get(i).id<msg.id) { i++; }
         this.peers.add(i, new Peer(msg.id, msg.ref));
+        if (this.coordinator==null){
+            this.coordinator = msg.coordinator;
+        }
     }
 
     private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
@@ -301,6 +308,9 @@ public class Node extends AbstractActor {
         // Success message creation and send
         transaction.client.tell(new Set.SuccessMsg(), getSelf());
 
+        // debug
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
+
         // find the max version and increase it by one
         int maxVersion = 0;
         for (int response: transaction.replies) {
@@ -414,15 +424,15 @@ public class Node extends AbstractActor {
         // Success message creation and send
         if (latestEntry!=null){
             transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
-            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
 
             // debug
-            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
             System.out.println("R "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
         }else{
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
-            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
+
+        // debug
+        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
 
     }
 
@@ -437,6 +447,8 @@ public class Node extends AbstractActor {
         // Get.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+
+            // debug
             coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
     }
@@ -450,6 +462,9 @@ public class Node extends AbstractActor {
      */
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
+        // debug
+        this.coordinator = msg.coordinator;
+
         // Join.TopologyMsg creation and send
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
     }
@@ -586,6 +601,11 @@ public class Node extends AbstractActor {
 
     // LEAVE
 
+    /**
+     * Leave.InitiateMsg handler; the leaving node says to other nodes that it is leaving the network.
+     *
+     * @param msg Leave.InitiateMsg message
+     */
     private void receiveLeave(Leave.InitiateMsg msg) {
         if (this.crashed) return;
         AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
@@ -594,6 +614,12 @@ public class Node extends AbstractActor {
         }
     }
 
+    /**
+     * Leave.AnnounceLeavingMsg handler; it removes the leaving node from the network and sends the leaving node
+     * data iitems to the new responsibles.
+     *
+     * @param msg Leave.AnnounceLeavingMsg message
+     */
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
         if (this.crashed) return;
         this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
@@ -616,12 +642,18 @@ public class Node extends AbstractActor {
 
         // Send the elements
         for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
-            sendMessageDelay(bucket.getKey().ref, new TransferItemsMsg(bucket.getValue()));
+            sendMessageDelay(bucket.getKey().ref, new Leave.TransferItemsMsg(bucket.getValue()));
             coordinator.tell(new Debug.IncreaseOngoingMsg(bucket.getKey().ref),ActorRef.noSender());
         }
     }
 
-    private void receiveTransferItems(TransferItemsMsg msg) {
+    /**
+     * Leave.TransferItemsMsg handler; the new responsibles insert the data items in their local storage if they are
+     * most-up-to-date.
+     *
+     * @param msg Leave.TransferItemsMsg message.
+     */
+    private void receiveTransferItems(Leave.TransferItemsMsg msg) {
         if (this.crashed) return;
         for (Pair<Integer, Entry> dataItem: msg.items) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
@@ -726,7 +758,7 @@ public class Node extends AbstractActor {
      *
      * @param msg Crash.DataResponseMsg message
      */
-    private void receiverDataResponse(Crash.DataResponseMsg msg) {
+    private void receiveDataResponse(Crash.DataResponseMsg msg) {
         if (this.crashed) return;
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
@@ -758,6 +790,12 @@ public class Node extends AbstractActor {
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
         .match(Leave.TransferItemsMsg.class, this::receiveTransferItems)
         .match(Debug.AnnounceCoordinator.class, this::receiveAnnounceCoordinator)
+        .match(Crash.InitiateMsg.class, this::receiveCrash)
+        .match(Crash.RequestDataMsg.class, this::receiveDataRequest)
+        .match(Crash.RecoveryMsg.class, this::receiveRecovery)
+        .match(Crash.TopologyRequestMsg.class, this::receiveTopologyRequest)
+        .match(Crash.TopologyResponseMsg.class, this::receiveTopologyResponse)
+        .match(Crash.DataResponseMsg.class, this::receiveDataResponse)
         .build();
     }
 }

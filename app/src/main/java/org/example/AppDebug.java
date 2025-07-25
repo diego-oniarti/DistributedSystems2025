@@ -11,6 +11,7 @@ import org.example.msg.Join;
 import org.example.msg.Set;
 import org.example.shared.Graph;
 import org.example.shared.NamedClient;
+import org.example.Coordinator;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -27,40 +28,51 @@ public class AppDebug {
     public static final int N_JOIN = 0;
     public static final int N_LEAVE = 0;
 
-    public static final int STARTING_NODES = 5;
     public static final int N_CLIENT = 2;
 
     public ActorSystem system;
     public List<NamedClient> clients;
     public List<Peer> nodes;
+    public ActorRef coordinator;
 
     public AppDebug(String name) {
         this.system = ActorSystem.create(name);
         this.clients = new ArrayList<>();
         this.nodes = new ArrayList<>();
 
+        this.addCoordinator();
         this.addClients();
         this.addNodes();
+
+    }
+
+    public void addCoordinator(){
+        this.coordinator = this.system.actorOf(Coordinator.props());
     }
 
     public void addClients() {
         for (int i = 0; i<N_CLIENT; i++){
             String name = generateRandomString(4);
-            this.clients.add(new NamedClient(name, this.system.actorOf(Client.props(name))));
+            ActorRef client = this.system.actorOf(Client.props(name));
+            this.clients.add(new NamedClient(name, client));
+            this.coordinator.tell(new Debug.AddClientMsg(client,name),ActorRef.noSender());
         }
     }
 
     public void addNodes(){
-        for (int i=0; i<STARTING_NODES; i++) {
-            this.nodes.add(new Peer(i*10, this.system.actorOf(Node.props(i*10))));
+        for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
+            Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
+            this.nodes.add(p);
+            this.coordinator.tell(new Debug.AddNodeMsg(p.ref,p.id,coordinator),ActorRef.noSender());
         }
 
         for (Peer n1: this. nodes) {
             for (Peer n2: this.nodes) {
-                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
+                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id,coordinator), n2.ref);
             }
         }
     }
+
 
     public void setFixedTest(){
         // setting of the network
@@ -285,7 +297,7 @@ public class AppDebug {
         return "Sequentially consistent";
     }
 
-    public void setDynamicTest(){
+    /*public void setDynamicTest(){
 
         Random rng = new Random();
 
@@ -410,7 +422,7 @@ public class AppDebug {
         }
 
         return "Dynamic set test is correct";
-    }
+    }*/
 
 
     public String generateRandomString(int length) {

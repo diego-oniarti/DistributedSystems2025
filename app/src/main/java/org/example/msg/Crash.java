@@ -18,6 +18,7 @@ public class Crash{
      * This class represents the message to begin the crash.
      */
     public static class InitiateMsg implements Serializable {};
+
     /**
      * This class represents the message to begin the recovery procedure.
      */
@@ -35,6 +36,7 @@ public class Crash{
             this.helper = helper;
         }
     }
+
     /**
      * This class represents the message to request the topology of the network.
      */
@@ -57,6 +59,7 @@ public class Crash{
             this.peers.addAll(peers);
         }
     }
+
     /**
      * This class represents the message to request the data from the node that were responsible for the data items
      * of the recovered node.
@@ -75,6 +78,7 @@ public class Crash{
             this.id = id;
         }
     };
+
     /**
      * This class represents the message to send the data items the recovered node is responsible for.
      */

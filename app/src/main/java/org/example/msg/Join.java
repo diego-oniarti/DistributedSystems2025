@@ -1,5 +1,6 @@
 package org.example.msg;
 
+import akka.actor.ActorRef;
 import org.example.Node;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -13,7 +14,14 @@ public class Join {
     /**
      * This class represents the message to begin a join operation.
      */
-    public static class InitiateMsg implements Serializable {}
+    public static class InitiateMsg implements Serializable {
+        /** ActorRef of the coordinator */
+        public final ActorRef coordinator;
+
+        public InitiateMsg(ActorRef coordinator) {
+            this.coordinator = coordinator;
+        }
+    }
     /**
      * This class represents the message to
      */

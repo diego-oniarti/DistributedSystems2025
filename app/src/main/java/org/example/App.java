@@ -3,11 +3,10 @@
  */
 package org.example;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.*;
+import akka.actor.ActorRef;
+import org.example.msg.Debug;
 
-import static org.example.AppDebug.N_SET;
+import java.io.FileNotFoundException;
 
 public class App {
 
@@ -17,11 +16,13 @@ public class App {
     public static final int T = 500;
     public static final int MSG_MAX_DELAY = 100;
 
+    public static final int STARTING_NODES = 5;
     public static final int ROUNDS = 10;
 
     public static void main(String[] args) throws FileNotFoundException {
 
-        AppDebug d = new AppDebug("set_test");
+        AppDebug d = new AppDebug("coordinator_test");
+        d.coordinator.tell(new Debug.StartRoundMsg(), ActorRef.noSender());
 
         // d.setFixedTest();
         // String e = d.check_set_file();
@@ -31,8 +32,5 @@ public class App {
         // String e = d.check_consistency_file();
         // System.out.println(e);
 
-        d.setDynamicTest();
-        String e = d.check_dynamic_set_file();
-        System.out.println(e);
     }
 }
