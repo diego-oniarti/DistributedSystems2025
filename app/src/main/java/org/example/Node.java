@@ -122,9 +122,6 @@ public class Node extends AbstractActor {
         int i = 0;
         while (i<this.peers.size() && this.peers.get(i).id<msg.id) { i++; }
         this.peers.add(i, new Peer(msg.id, msg.ref));
-        if (this.coordinator==null){
-            this.coordinator = msg.coordinator;
-        }
     }
 
     private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
@@ -308,9 +305,6 @@ public class Node extends AbstractActor {
         // Success message creation and send
         transaction.client.tell(new Set.SuccessMsg(), getSelf());
 
-        // debug
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
-
         // find the max version and increase it by one
         int maxVersion = 0;
         for (int response: transaction.replies) {
@@ -352,9 +346,6 @@ public class Node extends AbstractActor {
         // Set.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
-
-            // debug
-            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
     }
 
@@ -431,9 +422,6 @@ public class Node extends AbstractActor {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
 
-        // debug
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
-
     }
 
     /**
@@ -447,9 +435,6 @@ public class Node extends AbstractActor {
         // Get.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
-
-            // debug
-            coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
         }
     }
 
@@ -462,10 +447,9 @@ public class Node extends AbstractActor {
      */
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
-        // debug
-        this.coordinator = msg.coordinator;
 
         // Join.TopologyMsg creation and send
+        this.joiningQuorum = 0;
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
     }
     /**
@@ -554,13 +538,18 @@ public class Node extends AbstractActor {
 
         // we reach the quorum
         if (joiningQuorum>=App.R) {
-            Stream.concat(
+            Stream<Peer> allPeers = Stream.concat(
                 this.peers.stream(),
                 Stream.of(new Peer(this.id, getSelf()))
-            ).forEach(peer -> {
-                    // Join.AnnouncePresenceMsg creation and send
-                    sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
-                });
+            );
+            peers.forEach(peer -> {
+                // debug
+                coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
+            });
+            peers.forEach(peer -> {
+                // Join.AnnouncePresenceMsg creation and send
+                sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
+            });
         }
     }
     /**
@@ -589,14 +578,11 @@ public class Node extends AbstractActor {
             }
         }
 
-        // debug
-
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
-
         if (msg.id==this.id){
             System.out.println("J "+this.id);
         }
 
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     // LEAVE
@@ -622,6 +608,7 @@ public class Node extends AbstractActor {
      */
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
         if (this.crashed) return;
+        // Remove the node from the topology
         this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
         if (getSelf() != getSender()) return;
 
@@ -642,8 +629,11 @@ public class Node extends AbstractActor {
 
         // Send the elements
         for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
+            coordinator.tell(new Debug.IncreaseOngoingMsg(bucket.getKey().ref), ActorRef.noSender());
             sendMessageDelay(bucket.getKey().ref, new Leave.TransferItemsMsg(bucket.getValue()));
-            coordinator.tell(new Debug.IncreaseOngoingMsg(bucket.getKey().ref),ActorRef.noSender());
+        }
+        if (buckets.isEmpty()) {
+            coordinator.tell(new Debug.DecreaseOngoingMsg(), ActorRef.noSender());
         }
     }
 
@@ -660,8 +650,7 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
-
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     /// CRASH
@@ -731,8 +720,8 @@ public class Node extends AbstractActor {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
             // Crash.RequestDataMsg send
+            coordinator.tell(new Debug.IncreaseOngoingMsg(this.peers.get(j).ref), ActorRef.noSender());
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
-            coordinator.tell(new Debug.IncreaseOngoingMsg(this.peers.get(j).ref),ActorRef.noSender());
         }
     }
     /**

@@ -3,10 +3,15 @@ package org.example;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+
+import org.example.Node.Peer;
 import org.example.msg.*;
 import org.example.msg.Set;
+import org.example.shared.NamedClient;
+import org.example.shared.RngList;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 import static org.example.App.*;
 
@@ -21,13 +26,13 @@ public class Coordinator extends AbstractActor {
     private final static int K = 4;
 
     /** List of clients */
-    private List<ActorRef> clients;
+    private RngList<NamedClient> clients;
     /** List of nodes in the system */
-    private List<ActorRef> nodes_in;
+    private RngList<Peer> nodes_in;
     /** List of nodes out from the system */
-    private List<ActorRef> nodes_out;
+    private RngList<Peer> nodes_out;
     /** List of crashed nodes */
-    private List<ActorRef> crashed_nodes;
+    private RngList<Peer> crashed_nodes;
 
     /** Maximum ID of the nodes (in and out) */
     private int max_id;
@@ -35,7 +40,7 @@ public class Coordinator extends AbstractActor {
     private int [] keys;
 
     /** Counter of the actions that need to finish before starting another round */
-    private int ongoing_action;
+    private int ongoing_actions;
     /** Number of current round */
     private int current_round;
 
@@ -47,15 +52,15 @@ public class Coordinator extends AbstractActor {
      * Constructor of the Coordinator class.
      */
     public Coordinator() {
-        this.clients = new ArrayList<>();
-        this.nodes_in = new ArrayList<>();
-        this.nodes_out = new ArrayList<>();
-        this.crashed_nodes = new ArrayList<>();
+        this.rng = new Random();
+        this.clients = new RngList<>(rng);
+        this.nodes_in = new RngList<>(rng);
+        this.nodes_out = new RngList<>(rng);
+        this.crashed_nodes = new RngList<>(rng);
         this.max_id = 0;
         this.keys = new int[K];
-        this.ongoing_action = 0;
+        this.ongoing_actions = 0;
         this.current_round = 0;
-        this.rng = new Random();
     }
 
     static public Props props() {
@@ -70,31 +75,50 @@ public class Coordinator extends AbstractActor {
      * @param msg Debug.AddClientMsg message
      */
     private void receiveAddClientMsg(Debug.AddClientMsg msg){
-        this.clients.add(msg.ref);
+        this.clients.add(new NamedClient(msg.name, msg.ref));
     }
 
-    /**
-     * Handler of Debug.AddNodeMsg; it adds the node (in or out) and generates keys considering as bound the maximum
-     * ID plus ten.
-     *
-     * @param msg Debug.AddNodeMsg message
-     */
-    private void receiveAddNodeMsg(Debug.AddNodeMsg msg){
+    // /**
+    //  * Handler of Debug.AddNodeMsg; it adds the node (in or out) and generates keys considering as bound the maximum
+    //  * ID plus ten.
+    //  *
+    //  * @param msg Debug.AddNodeMsg message
+    //  */
+    // private void receiveAddNodeMsg(Debug.AddNodeMsg msg){
+    //     if (nodes_in.size()<N || rng.nextFloat()<0.75){
+    //         this.nodes_in.add(msg.ref);
+    //     }else{
+    //         this.nodes_out.add(msg.ref);
+    //     }
+    //     if (msg.id>max_id){
+    //         max_id = msg.id;
+    //         for (int i=0; i<K; i++){
+    //             keys[i]=rng.nextInt(max_id+10);
+    //         }
+    //     }
+    // }
 
-        if (nodes_in.size()<N || rng.nextFloat()<0.75){
-            this.nodes_in.add(msg.ref);
-        }else{
-            this.nodes_out.add(msg.ref);
+    private void receiveAddNodesMsg(Debug.AddNodesMsg msg){
+        int maxId = 0;
+        for (Peer p: msg.peers) {
+            if (p.id > maxId) maxId = p.id;
+            if (this.nodes_in.size()<App.STARTING_NODES) {
+                this.nodes_in.add(p);
+            } else {
+                this.nodes_out.add(p);
+            }
         }
-
-        if (msg.id>max_id){
-            max_id = msg.id;
-
-            for (int i=0; i<K; i++){
-                keys[i]=rng.nextInt(max_id+10);
+        for (int i=0; i<K; i++){
+            keys[i]=rng.nextInt(max_id+10);
+        }
+        for (Peer n1: this.nodes_in) {
+            for (Peer n2: this.nodes_in) {
+                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
             }
         }
     }
+
+
 
     /**
      * Debug.StartRoundMsg handler; it chooses between performing a set/get round or a join/leave/crash/recovery round
@@ -103,65 +127,82 @@ public class Coordinator extends AbstractActor {
      * @param msg Debug.StartRoundMsg message
      */
     private void receiveStartRoundMsg(Debug.StartRoundMsg msg){
+        // try {Thread.sleep(5000); }catch (Exception e) { System.out.println("CRASH"); }
+        System.out.println("///// STARTING ROUND "+current_round);
+        // try {Thread.sleep(5000); }catch (Exception e) { System.out.println("CRASH"); }
 
+        ongoing_actions = 0;
         // READ and WRITE
         if (rng.nextBoolean()){
-            ongoing_action = clients.size();
-            System.out.println(("SET/GET (round "+this.current_round+")"));
-            for (ActorRef client : clients){
+            ongoing_actions = clients.size();
+            for (NamedClient client : clients){
                 int key = keys[rng.nextInt(K)];
-                ActorRef node = randomNode();
-                // WRITE
-                if (rng.nextBoolean()){
-                    node.tell(new Set.InitiateMsg(key, generateRandomString(20)), client);
-                }else{ //READ
-                    node.tell(new Get.InitiateMsg(key), client);
+                ActorRef node = nodes_in.getRandom().ref;
+                if (rng.nextBoolean()) {
+                    // WRITE
+                    System.out.println(("SET (round "+this.current_round+")"));
+                    node.tell(new Set.InitiateMsg(key, generateRandomString(20)), client.ref);
+                } else {
+                    // READ
+                    System.out.println(("GET (round "+this.current_round+")"));
+                    node.tell(new Get.InitiateMsg(key), client.ref);
                 }
             }
         }else{ // JOIN, LEAVE, CRASH, RECOVERY
-            ActorRef node = randomNode();
+            Peer node;
+            do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
+
             switch (rng.nextInt(4)){
                 // JOIN
-                case 1:
+                case 0:
                     System.out.println("JOIN (round "+this.current_round+")");
 
-                    if (nodes_out.isEmpty()) { getSelf().tell(new Debug.StartRoundMsg(),getSelf()); return; }
-                    ActorRef new_node = randomOutNode();
+                    if (nodes_out.isEmpty()) {
+                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                        return;
+                    }
+                    Peer new_node = nodes_out.removeRandom();
                     nodes_in.add(new_node);
-                    ongoing_action = nodes_in.size()-crashed_nodes.size();
 
-
-                    node.tell(new Join.InitiateMsg(getSelf()), new_node);
+                    node.ref.tell(new Join.InitiateMsg(), new_node.ref);
                     break;
                 // LEAVE
-                /*case 2:
+                case 1:
+                    System.out.println("LEAVE (round "+this.current_round+")");
+                    if (nodes_in.size() == N) {
+                        System.out.println("Can't have less than N nodes");
+                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                        return;
+                    }
+
                     nodes_in.remove(node);
-
-                    System.out.println("LEAVE");
-                    node.tell(new Leave.InitiateMsg(),ActorRef.noSender());
-                    break;*/
+                    node.ref.tell(new Leave.InitiateMsg(), ActorRef.noSender());
+                    break;
                 // CRASH
-                case 3:
+                case 2:
                     System.out.println("CRASH (round "+this.current_round+")");
-                    // condition to avoid total crash failures
-                    if (crashed_nodes.size()==nodes_in.size()-1 || crashed_nodes.contains(node))
-                    { getSelf().tell(new Debug.StartRoundMsg(),getSelf()); return; }
+
+                    // condition to avoid total crash failure || crashed_nodes.contains(node))s
+                    if (crashed_nodes.size()==nodes_in.size()-1) {
+                        System.out.println("Can't crash only remaining node");
+                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                        return;
+                    }
+
                     crashed_nodes.add(node);
-                    ongoing_action = 1;
+                    ongoing_actions = 1;
 
-
-                    node.tell(new Crash.InitiateMsg(),ActorRef.noSender());
+                    node.ref.tell(new Crash.InitiateMsg(),ActorRef.noSender());
                     break;
                 // RECOVERY
-                case 4:
+                case 3:
                     System.out.println("RECOVERY (round "+this.current_round+")");
-                    if (crashed_nodes.size()==0) { getSelf().tell(new Debug.StartRoundMsg(),getSelf()); return;}
-                    while (crashed_nodes.contains(node)){
-                        node = randomNode();
-                    }
-                    ActorRef crashed_node = randomCrashedNode();
 
-                    crashed_node.tell(new Crash.RecoveryMsg(node),ActorRef.noSender());
+                    if (crashed_nodes.size()==0) { getSelf().tell(new Debug.StartRoundMsg(),getSelf()); return;}
+                    Peer crashed_node = crashed_nodes.removeRandom();
+                    nodes_in.add(crashed_node);
+
+                    crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
                     break;
             }
         }
@@ -174,8 +215,8 @@ public class Coordinator extends AbstractActor {
      * @param msg Debug.IncreaseOngoingMsg message
      */
     private void receiveIncreaseOngoingMsg (Debug.IncreaseOngoingMsg msg){
-        if (!crashed_nodes.contains(msg.responsible)){
-            ongoing_action++;
+        if (crashed_nodes.stream().noneMatch(p -> p.ref==msg.responsible)) {
+            ongoing_actions++;
         }
     }
 
@@ -186,18 +227,22 @@ public class Coordinator extends AbstractActor {
      * @param msg Debug.DecreaseOngoingMsg message
      */
     private void receiveDecreaseOngoingMsg(Debug.DecreaseOngoingMsg msg){
-        this.ongoing_action--;
-        if (this.ongoing_action==0){
+        this.ongoing_actions--;
+        if (this.ongoing_actions<=0){
+            this.ongoing_actions=0;
             current_round++;
-            if (current_round==ROUNDS){return;}
-            getSelf().tell(new Debug.StartRoundMsg(),ActorRef.noSender());
+            if (current_round>=ROUNDS){
+                System.out.println("> PRESS ENTER <");
+                return;
+            }
+            getSelf().tell(new Debug.StartRoundMsg(), ActorRef.noSender());
         }
     }
 
     @Override
     public Receive createReceive() {
         return receiveBuilder()
-            .match(Debug.AddNodeMsg.class, this::receiveAddNodeMsg)
+            .match(Debug.AddNodesMsg.class, this::receiveAddNodesMsg)
             .match(Debug.AddClientMsg.class, this::receiveAddClientMsg)
             .match(Debug.DecreaseOngoingMsg.class, this::receiveDecreaseOngoingMsg)
             .match(Debug.IncreaseOngoingMsg.class, this::receiveIncreaseOngoingMsg)
@@ -220,32 +265,5 @@ public class Coordinator extends AbstractActor {
             sb.append(characterSet.charAt(index));
         }
         return sb.toString();
-    }
-
-    /**
-     * It takes a random node from nodes in.
-     *
-     * @return the random node
-     */
-    private ActorRef randomNode(){
-        return nodes_in.get(rng.nextInt(nodes_in.size()));
-    }
-
-    /**
-     * It removes a random node from nodes out,
-     *
-     * @return the random node
-     */
-    private ActorRef randomOutNode(){
-        return nodes_out.remove(rng.nextInt(nodes_out.size()));
-    }
-
-    /**
-     * It removes a random node from crashed nodes.
-     *
-     * @return the random node.
-     */
-    private ActorRef randomCrashedNode(){
-        return crashed_nodes.remove(rng.nextInt(crashed_nodes.size()));
     }
 }

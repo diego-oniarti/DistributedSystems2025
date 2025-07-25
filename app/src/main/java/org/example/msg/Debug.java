@@ -3,6 +3,9 @@ package org.example.msg;
 import akka.actor.ActorRef;
 
 import java.io.Serializable;
+import java.util.LinkedList;
+
+import org.example.Node.Peer;
 
 /**
  * The class contains all the messages sent for debugging purposes.
@@ -17,11 +20,19 @@ public class Debug {
         public final ActorRef ref;
         /** ID of the node */
         public final int id;
-        public final ActorRef coordinator;
-        public AddNodeMsg(ActorRef ref, int id, ActorRef coordinator) {
+        public AddNodeMsg(ActorRef ref, int id) {
             this.ref = ref;
             this.id = id;
-            this.coordinator = coordinator;
+        }
+    }
+
+    /**
+     * Message used to tell the coordinator all of its nodes
+     */
+    public static class AddNodesMsg implements Serializable {
+        public final LinkedList<Peer> peers;
+        public AddNodesMsg(LinkedList<Peer> peers) {
+            this.peers = peers;
         }
     }
 

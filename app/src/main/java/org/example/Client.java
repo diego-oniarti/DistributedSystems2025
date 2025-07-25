@@ -1,5 +1,6 @@
 package org.example;
 import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
 import akka.actor.Props;
 import org.example.msg.*;
 
@@ -9,6 +10,10 @@ import org.example.msg.*;
 public class Client extends AbstractActor {
     /** Name of the client. */
     private final String name;
+
+    // debug
+    private ActorRef coordinator;
+
     public Client(String name) {
         this.name = name;
     }
@@ -19,6 +24,7 @@ public class Client extends AbstractActor {
      */
     private void receiveSetSuccess(Set.SuccessMsg msg) {
         System.out.println(this.name + " : Success");
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
     /**
      * Set.FailMsg handler; it prints the fail of a set request.
@@ -27,6 +33,7 @@ public class Client extends AbstractActor {
      */
     private void receiveSetFail(Set.FailMsg msg) {
         System.out.println(this.name + " : Fail");
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
     /**
      * Get.SuccessMsg handler; it prints the success of a get request.
@@ -35,6 +42,7 @@ public class Client extends AbstractActor {
      */
     private void receiveGetSuccess(Get.SuccessMsg msg) {
         System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
     /**
      * Get.FailMsg handler; it prints the fail of a get request.
@@ -43,10 +51,15 @@ public class Client extends AbstractActor {
      */
     private void receiveGetFail(Get.FailMsg msg) {
         System.out.println(this.name + ": Fail ["+msg.key+"]");
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     static public Props props(String name) {
         return Props.create(Client.class, () -> new Client(name));
+    }
+
+    private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
+        this.coordinator = msg.coordinator;
     }
 
 	@Override
@@ -56,6 +69,7 @@ public class Client extends AbstractActor {
         .match(Set.FailMsg.class, this::receiveSetFail)
         .match(Get.SuccessMsg.class, this::receiveGetSuccess)
         .match(Get.FailMsg.class, this::receiveGetFail)
+        .match(Debug.AnnounceCoordinator.class, this::receiveAnnounceCoordinator)
         .build();
     }
 }

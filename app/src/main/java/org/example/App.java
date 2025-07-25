@@ -16,7 +16,7 @@ public class App {
     public static final int T = 500;
     public static final int MSG_MAX_DELAY = 100;
 
-    public static final int STARTING_NODES = 5;
+    public static final int STARTING_NODES = 7;
     public static final int ROUNDS = 10;
 
     public static void main(String[] args) throws FileNotFoundException {

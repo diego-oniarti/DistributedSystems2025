@@ -55,22 +55,21 @@ public class AppDebug {
             String name = generateRandomString(4);
             ActorRef client = this.system.actorOf(Client.props(name));
             this.clients.add(new NamedClient(name, client));
-            this.coordinator.tell(new Debug.AddClientMsg(client,name),ActorRef.noSender());
+            this.coordinator.tell(new Debug.AddClientMsg(client, name), ActorRef.noSender());
+            client.tell(new Debug.AnnounceCoordinator(coordinator), ActorRef.noSender());
         }
     }
 
     public void addNodes(){
         for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
+            p.ref.tell(new Debug.AnnounceCoordinator(coordinator), ActorRef.noSender());
             this.nodes.add(p);
-            this.coordinator.tell(new Debug.AddNodeMsg(p.ref,p.id,coordinator),ActorRef.noSender());
         }
 
-        for (Peer n1: this. nodes) {
-            for (Peer n2: this.nodes) {
-                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id,coordinator), n2.ref);
-            }
-        }
+        LinkedList<Peer> test = new LinkedList<>();
+        test.addAll(this.nodes);
+        coordinator.tell(new Debug.AddNodesMsg(test), ActorRef.noSender());
     }
 
 
