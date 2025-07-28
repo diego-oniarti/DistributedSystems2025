@@ -332,7 +332,7 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
-        System.out.println("W "+this.id+" "+msg.key+" "+msg.entry.version);
+        System.out.println("WRITE "+this.id+" "+msg.key+" "+msg.entry.version);
     }
 
     /**
@@ -417,7 +417,7 @@ public class Node extends AbstractActor {
             transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
 
             // debug
-            System.out.println("R "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
+            System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
         }else{
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
@@ -452,6 +452,7 @@ public class Node extends AbstractActor {
         this.joiningQuorum = 0;
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
     }
+
     /**
      * Join.TopologyMsg handler; the joining node receives the network topology and sends a message to get the data
      * it is responsible for.
@@ -466,6 +467,7 @@ public class Node extends AbstractActor {
             sendMessageDelay(neighbor.ref, new Join.ResponsibilityRequestMsg(this.id));
         }
     }
+
     /**
      * Join.ResponsibilityRequestMsg handler; it finds the data items the joining node is responsible for and sends them
      * to it.
@@ -479,8 +481,8 @@ public class Node extends AbstractActor {
         int newId = msg.nodeId;
         ActorRef newRef = getSender();
 
-        // Get a new list of all the nodes which also contains the new one
         HashMap<Integer, Entry> ret = new HashMap<>();
+        // Get a new list of all the nodes which also contains the new one
         List<Peer> allNodes = new LinkedList<Peer>();
         int last_id = -1;
         for (Peer peer: peers) {
@@ -504,7 +506,7 @@ public class Node extends AbstractActor {
                 i++;
             }
             if (i==allNodes.size()) { i = 0; }
-            for (int j=0; i<App.N; j++) {
+            for (int j=0; j<App.N; j++) {
                 Peer current = allNodes.get((i+j)%allNodes.size());
                 if (current.ref.equals(newRef)) {
                     ret.put(key, entry);
@@ -517,9 +519,11 @@ public class Node extends AbstractActor {
         // Join.ResponsibilityResponseMsg creation and send
         sendMessageDelay(getSender(), new Join.ResponsibilityResponseMsg(ret));
     }
+
     /**
      * Join.ResponsibilityResponseMsg handler; it checks the quorum, inserts the most-up-to-date data items in the
      * joining node local storage and announces the presence of the new node to the others.
+     *
      * @param msg
      */
     private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg) {
@@ -531,7 +535,7 @@ public class Node extends AbstractActor {
             Entry currentValue = storage.get(entry.getKey());
             if (currentValue == null || currentValue.version < entry.getValue().version) {
                 this.storage.put(entry.getKey(), entry.getValue());
-                System.out.println("A "+this.id+" "+entry.getKey()+" "+entry.getValue().version);
+                System.out.println("ADD "+this.id+" "+entry.getKey()+" "+entry.getValue().version);
             }
         }
         joiningQuorum++;
@@ -546,12 +550,13 @@ public class Node extends AbstractActor {
                 // debug
                 coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
             });
-            peers.forEach(peer -> {
+            allPeers.forEach(peer -> {
                 // Join.AnnouncePresenceMsg creation and send
                 sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
             });
         }
     }
+
     /**
      * Join.AnnouncePresenceMsg handler; the nodes insert the joining node in the network topology and remove the data
      * they are no longer responsible for.
@@ -574,12 +579,12 @@ public class Node extends AbstractActor {
             List<Peer> responsibles = this.getResponsibles(entry.getKey());
             if (!responsibles.stream().anyMatch(p -> p.id == this.id)) {
                 it.remove();
-                System.out.println("D "+this.id+" "+entry.getKey());
+                System.out.println("DELETE "+this.id+" "+entry.getKey());
             }
         }
 
         if (msg.id==this.id){
-            System.out.println("J "+this.id);
+            System.out.println("JOINING "+this.id);
         }
 
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
@@ -598,19 +603,23 @@ public class Node extends AbstractActor {
         for (Peer peer: this.peers) {
             sendMessageDelay(peer.ref, announcementMsg);
         }
+
+        // debug
+
+        System.out.println("LEAVE "+this.id);
     }
 
     /**
      * Leave.AnnounceLeavingMsg handler; it removes the leaving node from the network and sends the leaving node
-     * data iitems to the new responsibles.
+     * data items to the nodes that now are responsible for it.
      *
      * @param msg Leave.AnnounceLeavingMsg message
      */
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
-        if (this.crashed) return;
+        if (this.crashed) { return; }
         // Remove the node from the topology
         this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
-        if (getSelf() != getSender()) return;
+        if (getSelf() != getSender()) { return;}
 
         HashMap<Peer, LinkedList<Pair<Integer, Entry>>> buckets = new HashMap<>();
 
@@ -648,6 +657,9 @@ public class Node extends AbstractActor {
         for (Pair<Integer, Entry> dataItem: msg.items) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
+
+                // debug
+                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second());
             }
         }
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());

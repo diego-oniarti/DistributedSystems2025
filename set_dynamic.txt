@@ -1,35 +1,48 @@
-szvk : Success
-W 0 22 1
-W 30 22 1
-W 40 22 1
-J 50
-D 0 22
-J 60
-szvk : Success
-W 0 132 1
-W 10 132 1
-W 20 132 1
-A 70 132 1
-D 70 132
-J 70
-szvk : Success
-W 70 51 1
-W 60 51 1
-W 0 51 1
-szvk : Success
-W 20 80 1
-W 10 80 1
-W 0 80 1
-shtq : Success
-W 50 46 1
-W 60 46 1
-W 70 46 1
-A 80 132 1
-D 80 132
-J 80
-D 0 51
-D 20 80
-A 90 132 1
-D 90 132
-J 90
-D 10 80
+SET (round 1)
+GET (round 1)
+phal : Success
+xiyg: Fail [70]
+LEAVE (round 2)
+LEAVE 20
+WRITE 20 109 1
+WRITE 10 109 1
+WRITE 0 109 1
+ADD 30 109 org.example.Node$Entry@61cc7f82
+SET (round 3)
+GET (round 3)
+phal : Success
+WRITE 40 20 1
+WRITE 0 20 1
+xiyg: Fail [70]
+WRITE 30 20 1
+JOIN (round 4)
+ADD 130 20 1
+ADD 130 109 1
+DELETE 30 109
+DELETE 0 20
+LEAVE (round 5)
+LEAVE 10
+JOINING 130
+GET (round 6)
+SET (round 6)
+ADD 30 109 org.example.Node$Entry@61cc7f82
+xiyg : Success
+phal: Success [109: mdctawljlyfxenotpbjy]
+SET (round 7)
+GET (round 7)
+READ Actor[akka://coordinator_test/user/$b#907946065] 130 109 mdctawljlyfxenotpbjy
+WRITE 0 70 1
+WRITE 130 70 1
+WRITE 30 70 1
+phal : Success
+WRITE 0 70 2
+WRITE 30 70 2
+xiyg: Success [109: mdctawljlyfxenotpbjy]
+READ Actor[akka://coordinator_test/user/$c#1477406407] 130 109 mdctawljlyfxenotpbjy
+LEAVE (round 8)
+LEAVE 0
+WRITE 130 70 2
+ADD 40 70 org.example.Node$Entry@6cedbc2
+ADD 40 109 org.example.Node$Entry@61cc7f82
+LEAVE (round 9)
+Can't have less than N nodes

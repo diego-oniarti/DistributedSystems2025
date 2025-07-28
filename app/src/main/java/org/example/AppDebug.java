@@ -11,16 +11,19 @@ import org.example.msg.Join;
 import org.example.msg.Set;
 import org.example.shared.Graph;
 import org.example.shared.NamedClient;
-import org.example.Coordinator;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
+import java.util.stream.IntStream;
 
 import static org.example.App.*;
 
+/**
+ * The class executes some tests to check system properties.
+ */
 public class AppDebug {
 
     public static final int N_SET = 10;
@@ -33,17 +36,18 @@ public class AppDebug {
     public ActorSystem system;
     public List<NamedClient> clients;
     public List<Peer> nodes;
+    public List<Peer> nodes_out;
     public ActorRef coordinator;
 
-    public AppDebug(String name) {
+    public AppDebug(String name){
         this.system = ActorSystem.create(name);
         this.clients = new ArrayList<>();
         this.nodes = new ArrayList<>();
+        this.nodes_out = new ArrayList<>();
 
         this.addCoordinator();
         this.addClients();
         this.addNodes();
-
     }
 
     public void addCoordinator(){
@@ -64,13 +68,27 @@ public class AppDebug {
         for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
             p.ref.tell(new Debug.AnnounceCoordinator(coordinator), ActorRef.noSender());
-            this.nodes.add(p);
+            if (i<STARTING_NODES){
+                this.nodes.add(p);
+            }else{
+                this.nodes_out.add(p);
+            }
+
         }
 
-        LinkedList<Peer> test = new LinkedList<>();
-        test.addAll(this.nodes);
-        coordinator.tell(new Debug.AddNodesMsg(test), ActorRef.noSender());
+        for (Peer n1: this.nodes) {
+            for (Peer n2: this.nodes) {
+                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
+            }
+        }
+
+        LinkedList<Peer> test_in = new LinkedList<>();
+        test_in.addAll(this.nodes);
+        LinkedList<Peer> test_out = new LinkedList<>();
+        test_out.addAll(this.nodes_out);
+        coordinator.tell(new Debug.AddNodesMsg(test_in,test_out), ActorRef.noSender());
     }
+
 
 
     public void setFixedTest(){
@@ -122,7 +140,7 @@ public class AppDebug {
             File set = new File("set.txt");
             Scanner scan = new Scanner(set);
             while (scan.hasNextLine()) {        // W node_id item_key version
-                if (scan.hasNext("W")){
+                if (scan.hasNext("WRITE")){
                     scan.next();                // Discard W
                     int node_id = scan.nextInt();
                     int item_key = scan.nextInt();
@@ -240,9 +258,9 @@ public class AppDebug {
             File cons = new File("seq_cons.txt");
             Scanner scan = new Scanner(cons);
             while (scan.hasNextLine()) {        // W node_id item_key version
-                if (scan.hasNext("W")) {
+                if (scan.hasNext("WRITE")) {
                     scan.nextLine();
-                } else if (scan.hasNext("R")) {
+                } else if (scan.hasNext("READ")) {
                     scan.next();
                     String client = scan.next();
                     int node_id = scan.nextInt();
@@ -296,7 +314,7 @@ public class AppDebug {
         return "Sequentially consistent";
     }
 
-    /*public void setDynamicTest(){
+    public void setDynamicTest(){
 
         Random rng = new Random();
 
@@ -309,33 +327,9 @@ public class AppDebug {
             e.printStackTrace();
         }
 
-        final int N_OP = 10;
-        int bound = (STARTING_NODES+N_OP+1)*10;
-        int n_joins = 0;
-        List<Peer> old_net = new ArrayList<>();
-        old_net.addAll(nodes);
+        coordinator.tell(new Debug.StartRoundMsg(),ActorRef.noSender());
 
-        for (int i=0; i<N_OP; i++) {
-
-            Peer node = old_net.get(rng.nextInt(old_net.size()));
-
-            if (rng.nextBoolean()) {
-                // SET
-                int key = rng.nextInt(bound);
-                String value = generateRandomString(5);
-                ActorRef client = clients.get(rng.nextInt(clients.size())).ref;
-                node.ref.tell(new Set.InitiateMsg(key, value), client);
-            }else{
-                // JOIN
-                Peer joining_node = new Peer((STARTING_NODES+n_joins)*10,this.system.actorOf(Node.props((STARTING_NODES+n_joins)*10)));
-                nodes.add(joining_node);
-                node.ref.tell(new Join.InitiateMsg(), joining_node.ref);
-                n_joins++;
-            }
-            try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
-        }
-
-        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
+        try { Thread.sleep(T*ROUNDS*N_CLIENT); } catch (InterruptedException e) {e.printStackTrace(); }
 
         System.setOut(console);
         try {
@@ -356,43 +350,112 @@ public class AppDebug {
             storage.put(p.id, new HashMap<>());
         }
 
-        // TODO: avoid duplicated code
+        int start = nodes.size();
+        int n_joins = 0;
+        int n_leave = 0;
+
         try {
             File set = new File("set_dynamic.txt");
             Scanner scan = new Scanner(set);
-            while (scan.hasNextLine()) {                // W node_id item_key version
-                if (scan.hasNext("W")){
-                    scan.next();                        // Discard W
-                    int node_id = scan.nextInt();
-                    int item_key = scan.nextInt();
-                    int item_version = scan.nextInt();
+            int node_id = 0;
+            int item_key = 0;
+            int item_version = 0;
 
-                    // Register the new item or update the version
-                    boolean item_is_present = items.get(item_key)!=null;
-                    if (!item_is_present || item_is_present && items.get(item_key) < item_version){
-                        items.put(item_key, item_version);
-                    }
+            while (scan.hasNextLine()) {
+                String next = scan.next();
+                switch (scan.next()) {
+                    case "WRITE":               // WRITE node_id item_key version
+                        node_id = scan.nextInt();
+                        item_key = scan.nextInt();
+                        item_version = scan.nextInt();
 
-                    // Register the new value for the node
-                    storage.get(node_id).put(item_key, item_version);
-                }else if (scan.hasNext("A")) {   //  A node_id item_key version
-                    scan.next();                        // Discard W
-                    int node_id = scan.nextInt();
-                    int item_key = scan.nextInt();
-                    int item_version = scan.nextInt();
-                    storage.get(node_id).put(item_key, item_version);
-                }else if (scan.hasNext("D")) {   //  D node_id item_key
-                    scan.next();                        // Discard W
-                    int node_id = scan.nextInt();
-                    int item_key = scan.nextInt();
-                    storage.get(node_id).remove(item_key);
-                }else{
-                    scan.nextLine();
+                        // Register the new item or update the version
+                        boolean item_is_present = items.get(item_key) != null;
+                        if (!item_is_present || item_is_present && items.get(item_key) < item_version) {
+                            items.put(item_key, item_version);
+                        }
+
+                        // Register the new value for the node
+                        storage.get(node_id).put(item_key, item_version);
+                        break;
+                    case "ADD":                 //  ADD node_id item_key version
+                        node_id = scan.nextInt();
+                        item_key = scan.nextInt();
+                        item_version = scan.nextInt();
+                        // we register the node that was added to the joining node
+                        if (!storage.containsKey(node_id)){
+                            storage.put(node_id,new HashMap<>());
+                        }
+                        storage.get(node_id).put(item_key, item_version);
+                        break;
+                    case "DELETE":              //  DELETE node_id item_key
+                        node_id = scan.nextInt();
+                        item_key = scan.nextInt();
+                        // we register the node that was removed because a new node joins the network
+                        if (!storage.containsKey(node_id)){
+                            storage.put(node_id,new HashMap<>());
+                        }
+                        storage.get(node_id).remove(item_key);
+                        break;
+                    case "JOINING":             // JOINING node_id
+                        n_joins++;
+                        node_id=scan.nextInt();
+
+                        // find the index of the joining node in the nodes out list
+                        int joining_index = 0;
+                        for (Peer p: nodes_out){
+                            if (p.id!=node_id){
+                                joining_index++;
+                            }else{
+                                break;
+                            }
+                        }
+
+                        // if there is, we insert the joining node to the nodes list maintaining the order, needed for
+                        // checks
+                        if (joining_index!=nodes_out.size()){
+                            Peer joining_node = nodes_out.remove(joining_index);
+                            int i=0;
+                            while (i<nodes.size() && joining_node.id > nodes.get(i).id) {
+                                i++;
+                            }
+                            nodes.add(i, joining_node);
+                        }
+
+                        break;
+                    case "LEAVE":
+                        n_leave++;
+                        node_id= scan.nextInt();
+
+                        // find the index of the leaving node in the nodes list
+                        int leave_index = 0;
+                        for (Peer p: nodes){
+                            if (p.id!=node_id){
+                                leave_index++;
+                            }else{
+                                break;
+                            }
+                        }
+
+                        // if there is, we insert the leaving node to the nodes out list
+                        if (leave_index!=nodes.size()){
+                            Peer leaving_node = nodes.remove(leave_index);
+                            this.nodes_out.add(leaving_node);
+                            storage.remove(leaving_node.id);
+                        }
+
+                    default:
+                        scan.nextLine();
                 }
             }
             scan.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+        }
+
+        // check number of nodes
+        if (nodes.size()!=start+(n_joins-n_leave)){
+            return "Final number of nodes in uncorrected";
         }
 
         // check data items assignment
@@ -416,13 +479,16 @@ public class AppDebug {
             }
         }
 
-        if (!storage.isEmpty()){
-            return "Some node has data items it is no longer responsible for";
+        // if we have some data items left in the storage this means that some nodes hold data items they are no
+        // responsible for
+        for (int k : storage.keySet()){
+            if (!storage.get(k).isEmpty()){
+                return "Some node has data items it is no longer responsible for";
+            }
         }
 
         return "Dynamic set test is correct";
-    }*/
-
+    }
 
     public String generateRandomString(int length) {
         String characterSet = "abcdefghijklmnopqrstuvwxyz";
@@ -435,8 +501,3 @@ public class AppDebug {
         return sb.toString();
     }
 }
-
-/*
- * TODO
- * 1. Modify all tests after having managed clients problem
- */

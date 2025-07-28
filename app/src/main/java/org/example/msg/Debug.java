@@ -27,12 +27,15 @@ public class Debug {
     }
 
     /**
-     * Message used to tell the coordinator all of its nodes
+     * This class represents the message to send the nodes in and out to the coordinator.
      */
     public static class AddNodesMsg implements Serializable {
-        public final LinkedList<Peer> peers;
-        public AddNodesMsg(LinkedList<Peer> peers) {
-            this.peers = peers;
+        public final LinkedList<Peer> peers_in;
+        public final LinkedList<Peer> peers_out;
+
+        public AddNodesMsg(LinkedList<Peer> peers_in, LinkedList<Peer> peers_out) {
+            this.peers_in = peers_in;
+            this.peers_out = peers_out;
         }
     }
 
@@ -83,8 +86,5 @@ public class Debug {
             this.coordinator = coordinator;
         }
     }
-
-
-
 
 }

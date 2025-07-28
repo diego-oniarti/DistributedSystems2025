@@ -11,7 +11,6 @@ import org.example.shared.NamedClient;
 import org.example.shared.RngList;
 
 import java.util.*;
-import java.util.function.Predicate;
 
 import static org.example.App.*;
 
@@ -78,47 +77,21 @@ public class Coordinator extends AbstractActor {
         this.clients.add(new NamedClient(msg.name, msg.ref));
     }
 
-    // /**
-    //  * Handler of Debug.AddNodeMsg; it adds the node (in or out) and generates keys considering as bound the maximum
-    //  * ID plus ten.
-    //  *
-    //  * @param msg Debug.AddNodeMsg message
-    //  */
-    // private void receiveAddNodeMsg(Debug.AddNodeMsg msg){
-    //     if (nodes_in.size()<N || rng.nextFloat()<0.75){
-    //         this.nodes_in.add(msg.ref);
-    //     }else{
-    //         this.nodes_out.add(msg.ref);
-    //     }
-    //     if (msg.id>max_id){
-    //         max_id = msg.id;
-    //         for (int i=0; i<K; i++){
-    //             keys[i]=rng.nextInt(max_id+10);
-    //         }
-    //     }
-    // }
 
+    /**
+     * Debug.AddNodesMsg handler; it adds the nodes in/nodes out and update keys.
+     *
+     * @param msg Debug.AddNodesMsg message
+     */
     private void receiveAddNodesMsg(Debug.AddNodesMsg msg){
-        int maxId = 0;
-        for (Peer p: msg.peers) {
-            if (p.id > maxId) maxId = p.id;
-            if (this.nodes_in.size()<App.STARTING_NODES) {
-                this.nodes_in.add(p);
-            } else {
-                this.nodes_out.add(p);
-            }
-        }
-        for (int i=0; i<K; i++){
-            keys[i]=rng.nextInt(max_id+10);
-        }
-        for (Peer n1: this.nodes_in) {
-            for (Peer n2: this.nodes_in) {
-                n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
-            }
-        }
+        this.nodes_in.addAll(msg.peers_in);
+        this.nodes_out.addAll(msg.peers_out);
+
+        RngList<Peer> all_nodes = new RngList<>();
+        all_nodes.addAll(this.nodes_in);
+        all_nodes.addAll(this.nodes_out);
+        updateKeys(all_nodes);
     }
-
-
 
     /**
      * Debug.StartRoundMsg handler; it chooses between performing a set/get round or a join/leave/crash/recovery round
@@ -127,11 +100,16 @@ public class Coordinator extends AbstractActor {
      * @param msg Debug.StartRoundMsg message
      */
     private void receiveStartRoundMsg(Debug.StartRoundMsg msg){
-        // try {Thread.sleep(5000); }catch (Exception e) { System.out.println("CRASH"); }
-        System.out.println("///// STARTING ROUND "+current_round);
-        // try {Thread.sleep(5000); }catch (Exception e) { System.out.println("CRASH"); }
+        current_round++;
+        if (current_round>=ROUNDS){
+            //System.out.println("> PRESS ENTER <");
+            return;
+        }
+
+        //System.out.println("///// STARTING ROUND "+current_round);
 
         ongoing_actions = 0;
+
         // READ and WRITE
         if (rng.nextBoolean()){
             ongoing_actions = clients.size();
@@ -152,7 +130,7 @@ public class Coordinator extends AbstractActor {
             Peer node;
             do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
 
-            switch (rng.nextInt(4)){
+            switch (rng.nextInt(2)){
                 // JOIN
                 case 0:
                     System.out.println("JOIN (round "+this.current_round+")");
@@ -169,6 +147,7 @@ public class Coordinator extends AbstractActor {
                 // LEAVE
                 case 1:
                     System.out.println("LEAVE (round "+this.current_round+")");
+
                     if (nodes_in.size() == N) {
                         System.out.println("Can't have less than N nodes");
                         getSelf().tell(new Debug.StartRoundMsg(), getSelf());
@@ -178,11 +157,12 @@ public class Coordinator extends AbstractActor {
                     nodes_in.remove(node);
                     node.ref.tell(new Leave.InitiateMsg(), ActorRef.noSender());
                     break;
+                    /*
                 // CRASH
                 case 2:
                     System.out.println("CRASH (round "+this.current_round+")");
 
-                    // condition to avoid total crash failure || crashed_nodes.contains(node))s
+                    // condition to avoid total crash failure
                     if (crashed_nodes.size()==nodes_in.size()-1) {
                         System.out.println("Can't crash only remaining node");
                         getSelf().tell(new Debug.StartRoundMsg(), getSelf());
@@ -203,7 +183,7 @@ public class Coordinator extends AbstractActor {
                     nodes_in.add(crashed_node);
 
                     crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
-                    break;
+                    break;*/
             }
         }
     }
@@ -230,11 +210,6 @@ public class Coordinator extends AbstractActor {
         this.ongoing_actions--;
         if (this.ongoing_actions<=0){
             this.ongoing_actions=0;
-            current_round++;
-            if (current_round>=ROUNDS){
-                System.out.println("> PRESS ENTER <");
-                return;
-            }
             getSelf().tell(new Debug.StartRoundMsg(), ActorRef.noSender());
         }
     }
@@ -265,5 +240,21 @@ public class Coordinator extends AbstractActor {
             sb.append(characterSet.charAt(index));
         }
         return sb.toString();
+    }
+
+    /**
+     * It updates the keys of the system using as bound the maximum ID of all the nodes inserted in the system.
+     *
+     * @param peers list of peers
+     */
+    private void updateKeys(RngList<Peer> peers){
+
+        for (Peer p: peers) {
+            if (p.id > max_id) max_id = p.id;
+        }
+
+        for (int i=0; i<K; i++){
+            keys[i]=rng.nextInt(max_id+10);
+        }
     }
 }

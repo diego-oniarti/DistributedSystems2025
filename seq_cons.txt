@@ -1,58 +1,104 @@
-qfrl : Success
-W 40 19 1
+odpi: Fail [40]
+///// STARTING ROUND 1
+hvat : Success
+W 0 31 1
+odpi : Success
+///// STARTING ROUND 2
+W 40 31 1
+W 0 31 1
+W 10 31 1
+W 40 31 1
+W 10 31 1
+hvat : Success
+W 40 14 1
+W 30 14 1
+W 20 14 1
+odpi: Success [31: dyoaopanzrrryndffsif]
+///// STARTING ROUND 3
+R Actor[akka://coordinator_test/user/$c#364151727] 10 31 dyoaopanzrrryndffsif
+odpi : Success
+W 30 13 1
+hvat: Success [14: ubozbwydpktxrshkhghr]
+R Actor[akka://coordinator_test/user/$b#1862051260] 10 14 ubozbwydpktxrshkhghr
+///// STARTING ROUND 4
+W 40 13 1
+W 20 13 1
+hvat: Fail [15]
+odpi : Success
+///// STARTING ROUND 5
+W 40 13 2
+W 30 13 2
+W 20 13 2
+///// STARTING ROUND 6
+D 40 13
+D 40 14
+J 20
+J 20
+D 30 13
+D 30 14
+///// STARTING ROUND 7
+odpi : Success
+hvat: Success [31: dyoaopanzrrryndffsif]
+R Actor[akka://coordinator_test/user/$b#1862051260] 20 31 dyoaopanzrrryndffsif
+///// STARTING ROUND 8
+W 20 15 1
+W 20 15 1
+W 20 15 1
+odpi : Success
+W 20 13 3
+hvat: Success [15: rpurbfykctzjflerxacc]
+///// STARTING ROUND 9
+R Actor[akka://coordinator_test/user/$b#1862051260] 40 15 rpurbfykctzjflerxacc
+W 20 13 3
+W 20 13 3
+hvat: Fail [38]
+hvat : Success
 W 20 19 1
-W 30 19 1
-qfrl : Success
-W 0 33 1
-W 40 33 1
-W 10 33 1
-qfrl: Success [19: saaea]
-R Actor[akka://set_test/user/$b#-931469840] 30 19 saaea
-qfrl : Success
-W 0 33 2
-W 40 33 2
-W 10 33 2
-jqup: Success [33: najjn]
-R Actor[akka://set_test/user/$a#282457084] 10 33 najjn
-qfrl: Fail [27]
-jqup : Success
+W 20 19 1
+W 20 19 1
+odpi: Fail [38]
+odpi : Success
 W 20 19 2
-W 30 19 2
-W 40 19 2
-qfrl: Fail [27]
-qfrl : Success
-W 40 27 1
-W 0 27 1
-W 30 27 1
-jqup: Success [27: weblk]
-R Actor[akka://set_test/user/$a#282457084] 0 27 weblk
-jqup : Success
-W 0 33 3
-W 10 33 3
-W 40 33 3
-jqup: Success [19: cbalx]
-R Actor[akka://set_test/user/$a#282457084] 30 19 cbalx
-jqup : Success
-W 0 26 1
-W 40 26 1
-W 30 26 1
-qfrl: Success [26: byivv]
-R Actor[akka://set_test/user/$b#-931469840] 40 26 byivv
-jqup: Success [19: cbalx]
-R Actor[akka://set_test/user/$a#282457084] 30 19 cbalx
-jqup: Success [27: weblk]
-R Actor[akka://set_test/user/$a#282457084] 0 27 weblk
-qfrl: Success [19: cbalx]
-R Actor[akka://set_test/user/$b#-931469840] 20 19 cbalx
-jqup : Success
-W 40 19 3
+W 20 19 2
+W 20 19 2
+odpi: Success [13: ppfkeaazirrjiqdaowsb]
+R Actor[akka://coordinator_test/user/$c#364151727] 40 13 ppfkeaazirrjiqdaowsb
+odpi : Success
+W 20 38 1
+W 40 38 1
+W 0 38 1
+hvat: Fail [19]
+hvat : Success
+W 0 40 1
+W 40 40 1
+W 20 40 1
+hvat : Success
+W 40 40 2
+W 20 40 2
+W 0 40 2
+odpi : Success
 W 20 19 3
-W 30 19 3
-qfrl : Success
-W 0 26 2
-W 30 26 2
-W 40 26 2
-qfrl : Success
-W 40 33 4
-W 10 33 4
-W 0 33 4
+W 20 19 3
+W 20 19 3
+odpi : Success
+W 30 13 4
+W 20 13 4
+W 40 13 4
+R Actor[akka://coordinator_test/user/$c#364151727] 40 13 sivpc
+odpi: Success [13: sivpc]
+odpi: Success [19: bxyvp]
+R Actor[akka://coordinator_test/user/$c#364151727] 40 19 bxyvp
+R Actor[akka://coordinator_test/user/$c#364151727] 30 19 bxyvp
+odpi: Success [19: bxyvp]
+odpi: Success [38: mzmsc]
+R Actor[akka://coordinator_test/user/$c#364151727] 0 38 mzmsc
+odpi : Success
+W 20 38 2
+W 0 38 2
+W 40 38 2
+R Actor[akka://coordinator_test/user/$c#364151727] 10 19 bxyvp
+odpi: Success [19: bxyvp]
+hvat: Success [38: nzkja]
+R Actor[akka://coordinator_test/user/$b#1862051260] 20 38 nzkja
+hvat: Success [38: nzkja]
+R Actor[akka://coordinator_test/user/$b#1862051260] 30 38 nzkja
