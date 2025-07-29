@@ -96,6 +96,7 @@ public class Node extends AbstractActor {
      * @param key key of the data item
      * @return the list of nodes that are responsibles for the data item
      */
+    // FIXME: sometimes we have error because we divide by zero
     private List<Peer> getResponsibles(int key) {
         List<Peer> ret = new LinkedList<>();
         int i = 0;
@@ -448,6 +449,7 @@ public class Node extends AbstractActor {
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
 
+        this.coordinator = msg.coordinator;
         // Join.TopologyMsg creation and send
         this.joiningQuorum = 0;
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
@@ -459,6 +461,7 @@ public class Node extends AbstractActor {
      *
      * @param msg Join.TopologyMsg message
      */
+    // TODO: talk with Diego about this
     private void receiveTopology(Join.TopologyMsg msg) {
         if (this.crashed) return;
         this.peers.addAll(msg.peers);

@@ -7,7 +7,6 @@ import akka.japi.Pair;
 import org.example.Node.Peer;
 import org.example.msg.Debug;
 import org.example.msg.Get;
-import org.example.msg.Join;
 import org.example.msg.Set;
 import org.example.shared.Graph;
 import org.example.shared.NamedClient;
@@ -17,7 +16,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
-import java.util.stream.IntStream;
 
 import static org.example.App.*;
 
@@ -26,19 +24,24 @@ import static org.example.App.*;
  */
 public class AppDebug {
 
+    /** Number of set operations for fixed network test set */
     public static final int N_SET = 10;
-    public static final int N_CRASH = 0;
-    public static final int N_JOIN = 0;
-    public static final int N_LEAVE = 0;
 
+    /** Number of clients in the system */
     public static final int N_CLIENT = 2;
 
+    /** System */
     public ActorSystem system;
+    /** List of clients */
     public List<NamedClient> clients;
+    /** List of nodes in the network */
     public List<Peer> nodes;
+    /** List of nodes out of the network */
     public List<Peer> nodes_out;
+    /** Coordinator */
     public ActorRef coordinator;
 
+    /** Constructor of the AppDebug class; it populates the system. */
     public AppDebug(String name){
         this.system = ActorSystem.create(name);
         this.clients = new ArrayList<>();
@@ -50,10 +53,12 @@ public class AppDebug {
         this.addNodes();
     }
 
+    /** It creates and adds the coordinator to the system. */
     public void addCoordinator(){
         this.coordinator = this.system.actorOf(Coordinator.props());
     }
 
+    /** It creates and adds clients to the system informing the coordinator. */
     public void addClients() {
         for (int i = 0; i<N_CLIENT; i++){
             String name = generateRandomString(4);
@@ -64,6 +69,7 @@ public class AppDebug {
         }
     }
 
+    /** In creates and add nodes (in and out) to the system informing the coordinator. */
     public void addNodes(){
         for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
@@ -73,7 +79,6 @@ public class AppDebug {
             }else{
                 this.nodes_out.add(p);
             }
-
         }
 
         for (Peer n1: this.nodes) {
@@ -89,8 +94,10 @@ public class AppDebug {
         coordinator.tell(new Debug.AddNodesMsg(test_in,test_out), ActorRef.noSender());
     }
 
-
-
+    /**
+     * It performs a fixed network set test; it generates random set operations redirecting the out stream in a
+     * file "set.txt".
+     */
     public void setFixedTest(){
         // setting of the network
         Random rng = new Random();
@@ -106,6 +113,7 @@ public class AppDebug {
 
         // generate random data items and send a set message; wait until the messages are finished
         int bound = (STARTING_NODES+1)*10;
+
         for (int i = 0; i<N_SET; i++){
             int key = rng.nextInt(bound);
             String value = generateRandomString(3);
@@ -122,12 +130,21 @@ public class AppDebug {
             console.println(">> Press Enter to End <<");
             System.in.read();
         }catch (Exception e) {}
+
         this.system.terminate();
     }
 
+    /**
+     * Checks the set.txt file; it sees if the assignment of data items is correct and if the number of operations
+     * executed is correct.
+     *
+     * @return a String explaining errors or success
+     */
     public String check_set_file() {
-        // read the file and check it
+
+        // items inserted in the system
         Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
+        // items inserted in nodes local storage
         Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
 
         for (Peer p : nodes) {
@@ -139,9 +156,9 @@ public class AppDebug {
         try {
             File set = new File("set.txt");
             Scanner scan = new Scanner(set);
-            while (scan.hasNextLine()) {        // W node_id item_key version
+            while (scan.hasNextLine()) {        // WRITE node_id item_key version
                 if (scan.hasNext("WRITE")){
-                    scan.next();                // Discard W
+                    scan.next();                // Discard WRITE
                     int node_id = scan.nextInt();
                     int item_key = scan.nextInt();
                     int item_version = scan.nextInt();
@@ -156,6 +173,7 @@ public class AppDebug {
                     storage.get(node_id).put(item_key, item_version);
                 } else{
                     String msg = scan.nextLine();
+                    // update the number of fails
                     if (msg.contains("Fail")){
                         n_fails++;
                     }
@@ -197,6 +215,10 @@ public class AppDebug {
 
     }
 
+    /**
+     * This test performs set/get operations to evaluate sequential consistency. It redirects the out stream to a file
+     * "seq_cons.txt".
+     */
     public void sequentialConsistencyTest() {
         // setting of the network
         Random rng = new Random();
@@ -245,9 +267,18 @@ public class AppDebug {
         this.system.terminate();
     }
 
+    /**
+     * It checks the file "seq_cons.txt" to see if the system follows sequential consistency. It creates a directed graph
+     * with nodes "itemkey.itemvalue" (where item value is the version). A node represents a read operation.
+     * Edges are from a node to the successive read operation that a client performed. To check sequential consistency,
+     * we check the existence of a topological order between nodes. If it is not so, the sequential consistency isn't
+     * provided.
+     *
+     * @return a String explaining errors or success
+     */
      public String check_consistency_file() {
-        // Client_name -> [(item_key, item_value)]
-        Map<String, List<Pair<Integer, String>>> history = new HashMap<>();
+        // read operations of clients
+        Map<String, List<Pair<Integer, String>>> history = new HashMap<>();  // Client_name -> [(item_key, item_value)]
         for (NamedClient client: clients) {
             history.put(client.ref.toString(), new LinkedList<>());
         }
@@ -257,10 +288,10 @@ public class AppDebug {
         try {
             File cons = new File("seq_cons.txt");
             Scanner scan = new Scanner(cons);
-            while (scan.hasNextLine()) {        // W node_id item_key version
+            while (scan.hasNextLine()) {        // WRITE node_id item_key version
                 if (scan.hasNext("WRITE")) {
                     scan.nextLine();
-                } else if (scan.hasNext("READ")) {
+                } else if (scan.hasNext("READ")) { // READ client_ref node_id item_key version
                     scan.next();
                     String client = scan.next();
                     int node_id = scan.nextInt();
@@ -269,6 +300,7 @@ public class AppDebug {
 
                     history.get(client).add(new Pair<Integer,String>(item_key, item_value));
 
+                    // create node
                     graph.addNode(item_key.toString()+"."+item_value);
                 } else {
                     String msg = scan.nextLine();
@@ -295,16 +327,19 @@ public class AppDebug {
                     continue;
                 }
                 if (!last.equals(val)) {
+                    // create edge
                     graph.addEdge(key+"."+last, key+"."+val);
                 }
             }
         }
 
+        // check topological order
         List<String> ordering = graph.check_topological_ordering();
         if (ordering==null) {
             return "Sequential inconsistency";
         }
 
+        // print order if found
         System.out.println("ORDERING:");
         for (String e: ordering) {
             System.out.print(e+" ");
@@ -314,14 +349,19 @@ public class AppDebug {
         return "Sequentially consistent";
     }
 
-    public void setDynamicTest(){
+    /**
+     * It performs the round simulation with the Coordinator. It redirects the out stream to a file.
+     *
+     * @param file name of the file to which redirect the out stream
+     */
+    public void dynamicTest(String file){
 
         Random rng = new Random();
 
         // create debug file and direct the console output to it
         PrintStream console = System.out;
         try{
-            PrintStream fileOut = new PrintStream(new FileOutputStream("set_dynamic.txt"));
+            PrintStream fileOut = new PrintStream(new FileOutputStream(file));
             System.setOut(fileOut);
         }catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -340,10 +380,16 @@ public class AppDebug {
 
     }
 
+    /**
+     * It checks assignment of data items and reassignment of data items in presence of join and leave operations.
+     *
+     * @return a String explaining errors or success
+     */
     public String check_dynamic_set_file(){
 
-        // read the file and check it
+        // items inserted in the system
         Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
+        // items inserted in nodes local storage
         Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
 
         for (Peer p : nodes) {
@@ -378,6 +424,7 @@ public class AppDebug {
                         // Register the new value for the node
                         storage.get(node_id).put(item_key, item_version);
                         break;
+                    // when a joining node/node inserts a data item it is now responsible for
                     case "ADD":                 //  ADD node_id item_key version
                         node_id = scan.nextInt();
                         item_key = scan.nextInt();
@@ -388,6 +435,7 @@ public class AppDebug {
                         }
                         storage.get(node_id).put(item_key, item_version);
                         break;
+                    // when a node deletes a data item the joining node is now responsible for
                     case "DELETE":              //  DELETE node_id item_key
                         node_id = scan.nextInt();
                         item_key = scan.nextInt();
@@ -423,7 +471,7 @@ public class AppDebug {
                         }
 
                         break;
-                    case "LEAVE":
+                    case "LEAVE":               // LEAVE node_id
                         n_leave++;
                         node_id= scan.nextInt();
 

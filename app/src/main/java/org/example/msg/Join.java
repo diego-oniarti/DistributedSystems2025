@@ -14,7 +14,12 @@ public class Join {
     /**
      * This class represents the message to begin a join operation.
      */
-    public static class InitiateMsg implements Serializable { }
+    public static class InitiateMsg implements Serializable {
+        public final ActorRef coordinator;
+        public InitiateMsg(ActorRef coordinator) {
+            this.coordinator = coordinator;
+        }
+    }
     /**
      * This class represents the message to
      */

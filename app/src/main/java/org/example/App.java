@@ -17,31 +17,31 @@ public class App {
     public static final int MSG_MAX_DELAY = 100;
 
     public static final int STARTING_NODES = 5;
-    public static final int ROUNDS = 10;
+    public static final int ROUNDS = 30;
 
     public static void main(String[] args) throws FileNotFoundException {
 
         AppDebug d = new AppDebug("coordinator_test");
 
-        // d.coordinator.tell(new Debug.StartRoundMsg(), ActorRef.noSender());
-
         // test about set operations in a fixed network
-
         // d.setFixedTest();
         // String e = d.check_set_file();
         // System.out.println(e);
 
         // test about set and get operations (seq consistency check) in a fixed network
-
         // d.sequentialConsistencyTest();
         // String e = d.check_consistency_file();
         // System.out.println(e);
 
         // test about set in a dynamic network (join and leave operations)
-        
-        d.setDynamicTest();
+        d.dynamicTest("set_dynamic.txt");
         String e = d.check_dynamic_set_file();
         System.out.println(e);
+
+        // test about set and get operations (seq consistency check) in a dynamic network
+        // d.dynamicTest("seq_cons.txt");
+        // String e = d.check_consistency_file();
+        // System.out.println(e);
 
     }
 }

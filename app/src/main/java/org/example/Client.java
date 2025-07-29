@@ -17,6 +17,7 @@ public class Client extends AbstractActor {
     public Client(String name) {
         this.name = name;
     }
+
     /**
      * Set.SuccessMsg handler; it prints the success of a set request.
      *
@@ -26,6 +27,7 @@ public class Client extends AbstractActor {
         System.out.println(this.name + " : Success");
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
+
     /**
      * Set.FailMsg handler; it prints the fail of a set request.
      *
@@ -35,6 +37,7 @@ public class Client extends AbstractActor {
         System.out.println(this.name + " : Fail");
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
+
     /**
      * Get.SuccessMsg handler; it prints the success of a get request.
      *
@@ -44,6 +47,7 @@ public class Client extends AbstractActor {
         System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
+
     /**
      * Get.FailMsg handler; it prints the fail of a get request.
      *

@@ -1,48 +1,119 @@
-SET (round 1)
-GET (round 1)
-phal : Success
-xiyg: Fail [70]
-LEAVE (round 2)
-LEAVE 20
-WRITE 20 109 1
-WRITE 10 109 1
-WRITE 0 109 1
-ADD 30 109 org.example.Node$Entry@61cc7f82
-SET (round 3)
-GET (round 3)
-phal : Success
-WRITE 40 20 1
-WRITE 0 20 1
-xiyg: Fail [70]
-WRITE 30 20 1
-JOIN (round 4)
-ADD 130 20 1
-ADD 130 109 1
-DELETE 30 109
-DELETE 0 20
-LEAVE (round 5)
+LEAVE (round 1)
 LEAVE 10
-JOINING 130
-GET (round 6)
-SET (round 6)
-ADD 30 109 org.example.Node$Entry@61cc7f82
-xiyg : Success
-phal: Success [109: mdctawljlyfxenotpbjy]
-SET (round 7)
-GET (round 7)
-READ Actor[akka://coordinator_test/user/$b#907946065] 130 109 mdctawljlyfxenotpbjy
-WRITE 0 70 1
-WRITE 130 70 1
-WRITE 30 70 1
-phal : Success
-WRITE 0 70 2
-WRITE 30 70 2
-xiyg: Success [109: mdctawljlyfxenotpbjy]
-READ Actor[akka://coordinator_test/user/$c#1477406407] 130 109 mdctawljlyfxenotpbjy
-LEAVE (round 8)
-LEAVE 0
-WRITE 130 70 2
-ADD 40 70 org.example.Node$Entry@6cedbc2
-ADD 40 109 org.example.Node$Entry@61cc7f82
+LEAVE (round 2)
+LEAVE 40
+GET (round 3)
+GET (round 3)
+atdd: Fail [126]
+ntqy: Fail [11]
+GET (round 4)
+GET (round 4)
+ntqy: Fail [11]
+atdd: Fail [65]
+JOIN (round 5)
+JOINING 60
+JOIN (round 6)
+LEAVE (round 7)
+LEAVE 30
+GET (round 8)
+SET (round 8)
+ntqy : Success
+WRITE 20 11 1
+WRITE 30 11 1
+WRITE 60 11 1
+ADD 110 11 1
+atdd: Fail [11]
+DELETE 30 11
+DELETE 110 11
+JOINING 110
 LEAVE (round 9)
-Can't have less than N nodes
+LEAVE 60
+JOIN (round 10)
+ADD 0 11 org.example.Node$Entry@84b49c3
+ADD 110 11 org.example.Node$Entry@84b49c3
+JOIN (round 11)
+ADD 220 11 1
+ADD 70 11 1
+JOINING 70
+DELETE 110 11
+DELETE 60 11
+DELETE 0 11
+JOIN (round 12)
+GET (round 13)
+SET (round 13)
+DELETE 220 11
+JOINING 220
+11:22:10.548 [coordinator_test-akka.actor.default-dispatcher-11] ERROR akka.actor.OneForOneStrategy - / by zero
+java.lang.ArithmeticException: / by zero
+	at org.example.Node.getResponsibles(Node.java:112)
+	at org.example.Node.receiveSet(Node.java:253)
+	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
+	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
+	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
+	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
+	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
+	at akka.actor.Actor.aroundReceive(Actor.scala:537)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
+	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
+atdd: Fail [126]
+SET (round 14)
+SET (round 14)
+ntqy : Success
+atdd : Success
+GET (round 15)
+GET (round 15)
+WRITE 110 11 2
+WRITE 70 11 2
+WRITE 20 210 1
+WRITE 20 11 2
+11:22:10.740 [coordinator_test-akka.actor.default-dispatcher-11] ERROR akka.actor.OneForOneStrategy - Cannot invoke "akka.actor.ActorRef.tell(Object, akka.actor.ActorRef)" because "this.coordinator" is null
+java.lang.NullPointerException: Cannot invoke "akka.actor.ActorRef.tell(Object, akka.actor.ActorRef)" because "this.coordinator" is null
+	at org.example.Node.lambda$receiveResponsibilityResponse$1(Node.java:551)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.example.Node.receiveResponsibilityResponse(Node.java:549)
+	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
+	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
+	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
+	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
+	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
+	at akka.actor.Actor.aroundReceive(Actor.scala:537)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
+	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
+	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
+	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
+	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
+	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
+	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
+WRITE 0 210 1
+WRITE 220 210 1
+atdd: Fail [210]

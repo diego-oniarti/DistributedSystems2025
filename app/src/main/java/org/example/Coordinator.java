@@ -142,7 +142,7 @@ public class Coordinator extends AbstractActor {
                     Peer new_node = nodes_out.removeRandom();
                     nodes_in.add(new_node);
 
-                    node.ref.tell(new Join.InitiateMsg(), new_node.ref);
+                    node.ref.tell(new Join.InitiateMsg(getSelf()), new_node.ref);
                     break;
                 // LEAVE
                 case 1:
