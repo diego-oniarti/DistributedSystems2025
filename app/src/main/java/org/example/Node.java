@@ -449,7 +449,6 @@ public class Node extends AbstractActor {
     private void receiveJoinInitiate(Join.InitiateMsg msg) {
         if (this.crashed) return;
 
-        this.coordinator = msg.coordinator;
         // Join.TopologyMsg creation and send
         this.joiningQuorum = 0;
         sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
@@ -461,13 +460,18 @@ public class Node extends AbstractActor {
      *
      * @param msg Join.TopologyMsg message
      */
-    // TODO: talk with Diego about this
+    // TODO: test
     private void receiveTopology(Join.TopologyMsg msg) {
         if (this.crashed) return;
+        this.peers.clear();
+        this.storage.clear();
         this.peers.addAll(msg.peers);
-        List<Peer> neighbors = this.getResponsibles(this.id);
-        for (Peer neighbor: neighbors) {
-            sendMessageDelay(neighbor.ref, new Join.ResponsibilityRequestMsg(this.id));
+
+        int myIndex = 0;
+        while (myIndex < this.peers.size() && this.peers.get(myIndex).id < this.id) {myIndex++;}
+        for (int i=-App.N+1; i<App.N; i++) {
+            int j = (i+myIndex+this.peers.size())%this.peers.size();
+            sendMessageDelay(peers.get(j).ref, new Join.ResponsibilityRequestMsg(this.id));
         }
     }
 
@@ -549,11 +553,9 @@ public class Node extends AbstractActor {
                 this.peers.stream(),
                 Stream.of(new Peer(this.id, getSelf()))
             );
-            peers.forEach(peer -> {
-                // debug
-                coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
-            });
             allPeers.forEach(peer -> {
+                // debug
+                this.coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
                 // Join.AnnouncePresenceMsg creation and send
                 sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
             });

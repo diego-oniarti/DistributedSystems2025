@@ -48,14 +48,9 @@ public class AppDebug {
         this.nodes = new ArrayList<>();
         this.nodes_out = new ArrayList<>();
 
-        this.addCoordinator();
+        this.coordinator = this.system.actorOf(Coordinator.props());
         this.addClients();
         this.addNodes();
-    }
-
-    /** It creates and adds the coordinator to the system. */
-    public void addCoordinator(){
-        this.coordinator = this.system.actorOf(Coordinator.props());
     }
 
     /** It creates and adds clients to the system informing the coordinator. */
@@ -65,7 +60,7 @@ public class AppDebug {
             ActorRef client = this.system.actorOf(Client.props(name));
             this.clients.add(new NamedClient(name, client));
             this.coordinator.tell(new Debug.AddClientMsg(client, name), ActorRef.noSender());
-            client.tell(new Debug.AnnounceCoordinator(coordinator), ActorRef.noSender());
+            client.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
         }
     }
 
@@ -73,7 +68,7 @@ public class AppDebug {
     public void addNodes(){
         for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
-            p.ref.tell(new Debug.AnnounceCoordinator(coordinator), ActorRef.noSender());
+            p.ref.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
             if (i<STARTING_NODES){
                 this.nodes.add(p);
             }else{
@@ -369,13 +364,10 @@ public class AppDebug {
 
         coordinator.tell(new Debug.StartRoundMsg(),ActorRef.noSender());
 
-        try { Thread.sleep(T*ROUNDS*N_CLIENT); } catch (InterruptedException e) {e.printStackTrace(); }
-
-        System.setOut(console);
         try {
-            console.println(">> Press Enter to End <<");
             System.in.read();
         }catch (Exception e) {}
+        System.setOut(console);
         this.system.terminate();
 
     }

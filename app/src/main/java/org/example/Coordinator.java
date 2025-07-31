@@ -102,11 +102,11 @@ public class Coordinator extends AbstractActor {
     private void receiveStartRoundMsg(Debug.StartRoundMsg msg){
         current_round++;
         if (current_round>=ROUNDS){
-            //System.out.println("> PRESS ENTER <");
+            System.err.println("> PRESS ENTER <");
             return;
         }
 
-        //System.out.println("///// STARTING ROUND "+current_round);
+        System.out.println("///// STARTING ROUND "+current_round);
 
         ongoing_actions = 0;
 
@@ -130,7 +130,7 @@ public class Coordinator extends AbstractActor {
             Peer node;
             do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
 
-            switch (rng.nextInt(2)){
+            switch (rng.nextInt(4)){
                 // JOIN
                 case 0:
                     System.out.println("JOIN (round "+this.current_round+")");
@@ -142,7 +142,7 @@ public class Coordinator extends AbstractActor {
                     Peer new_node = nodes_out.removeRandom();
                     nodes_in.add(new_node);
 
-                    node.ref.tell(new Join.InitiateMsg(getSelf()), new_node.ref);
+                    node.ref.tell(new Join.InitiateMsg(), new_node.ref);
                     break;
                 // LEAVE
                 case 1:
@@ -157,7 +157,6 @@ public class Coordinator extends AbstractActor {
                     nodes_in.remove(node);
                     node.ref.tell(new Leave.InitiateMsg(), ActorRef.noSender());
                     break;
-                    /*
                 // CRASH
                 case 2:
                     System.out.println("CRASH (round "+this.current_round+")");
@@ -178,12 +177,15 @@ public class Coordinator extends AbstractActor {
                 case 3:
                     System.out.println("RECOVERY (round "+this.current_round+")");
 
-                    if (crashed_nodes.size()==0) { getSelf().tell(new Debug.StartRoundMsg(),getSelf()); return;}
+                    if (crashed_nodes.size()==0) {
+                        getSelf().tell(new Debug.StartRoundMsg(),getSelf());
+                        return;
+                    }
                     Peer crashed_node = crashed_nodes.removeRandom();
                     nodes_in.add(crashed_node);
 
                     crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
-                    break;*/
+                    break;
             }
         }
     }
