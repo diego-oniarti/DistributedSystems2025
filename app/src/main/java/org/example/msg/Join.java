@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The class represents the messages exchanged during a join operation.
@@ -14,13 +15,20 @@ public class Join {
     /**
      * This class represents the message to begin a join operation.
      */
-    public static class InitiateMsg implements Serializable {}
+    public static class InitiateMsg implements Serializable {
+        public final ActorRef bootstrapping_peer;
+
+        public InitiateMsg(ActorRef bootstrapping_peer) {
+            this.bootstrapping_peer = bootstrapping_peer;
+        }
+    }
+    public static class TopologyRequestMsg implements Serializable { }
     /**
      * This class represents the message to
      */
-    public static class TopologyMsg implements Serializable {
+    public static class TopologyResponseMsg implements Serializable {
         public final List<Node.Peer> peers;
-        public TopologyMsg(List<Node.Peer> peers) {
+        public TopologyResponseMsg(List<Node.Peer> peers) {
             this.peers = new LinkedList<Node.Peer>();
             this.peers.addAll(peers);
         }
@@ -29,18 +37,19 @@ public class Join {
      * This class represents the message to
      */
     public static class ResponsibilityRequestMsg implements Serializable {
-        public final int nodeId;
-        public ResponsibilityRequestMsg(int nodeId) {
-            this.nodeId = nodeId;
+        public final int joining_id;
+
+        public ResponsibilityRequestMsg(int joining_id) {
+            this.joining_id = joining_id;
         }
     }
     /**
      * This class represents the message to
      */
     public static class ResponsibilityResponseMsg implements Serializable {
-        public final HashMap<Integer, Node.Entry> responsibility;
-        public ResponsibilityResponseMsg(HashMap<Integer, Node.Entry> responsibility) {
-            this.responsibility = responsibility;
+        public final Set<Integer> keys;
+        public ResponsibilityResponseMsg(Set<Integer> keys) {
+            this.keys = keys;
         }
     }
     /**
@@ -52,4 +61,9 @@ public class Join {
             this.id = id;
         }
     }
+
+    /**
+     * This class represents the message to stop the join operation execution.
+     */
+    public static class TimeoutMsg implements Serializable {}
 }

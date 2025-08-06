@@ -1,260 +1,235 @@
-JOIN (round 1)
-JOINING 50
-LEAVE (round 2)
-LEAVE 20
-GET (round 3)
-GET (round 3)
-szwn: Fail [101]
-alzc: Fail [101]
-SET (round 4)
-SET (round 4)
-LEAVE (round 5)
-LEAVE 50
+///// STARTING ROUND 1
+SET (round 1)
+SET (round 1)
+olsq : Success
+bahs : Success
+///// STARTING ROUND 2
+GET (round 2)
+GET (round 2)
+WRITE 10 92 1
+WRITE 0 92 1
+WRITE 20 92 1
+WRITE 10 342 1
+WRITE 20 342 1
+WRITE 0 342 1
+olsq: Fail [107]
+bahs: Success [92: gofsoayfylyteyzwxmbh]
+///// STARTING ROUND 3
+LEAVE (round 3)
+LEAVE 0
+READ Actor[akka://coordinator_test/user/$b#-106336814] 30 92 gofsoayfylyteyzwxmbh
+ADD 30 342 org.example.Node$Entry@26fc6d1d
+ADD 30 92 org.example.Node$Entry@4699d4c6
+///// STARTING ROUND 4
+JOIN (round 4)
+READ Actor[akka://coordinator_test/user/$k#1666838419] 70 92 gofsoayfylyteyzwxmbh
+ADD 70 92 1
+READ Actor[akka://coordinator_test/user/$k#1666838419] 70 342 szegratqrinsiwivkgby
+ADD 70 342 1
+DELETE 70 342
+DELETE 70 92
+JOINING 70
+///// STARTING ROUND 5
+GET (round 5)
+SET (round 5)
+olsq : Success
+WRITE 20 198 1
+WRITE 10 198 1
+WRITE 30 198 1
+bahs: Fail [198]
+///// STARTING ROUND 6
 JOIN (round 6)
-szwn : Success
-SET (round 7)
+READ Actor[akka://coordinator_test/user/$J#-775779559] 320 342 szegratqrinsiwivkgby
+ADD 320 342 1
+READ Actor[akka://coordinator_test/user/$J#-775779559] 320 198 mvjfcghlypwbpaiydiop
+ADD 320 198 1
+READ Actor[akka://coordinator_test/user/$J#-775779559] 320 92 gofsoayfylyteyzwxmbh
+ADD 320 92 1
+DELETE 30 198
+DELETE 30 92
+DELETE 320 342
+JOINING 320
+///// STARTING ROUND 7
 GET (round 7)
-alzc : Success
-WRITE 10 308 1
-WRITE 0 101 1
-WRITE 10 101 1
-WRITE 30 101 1
-szwn: Fail [101]
-JOIN (round 8)
-WRITE 0 308 1
-alzc : Success
-SET (round 9)
-SET (round 9)
-WRITE 30 308 1
-WRITE 10 308 1
-WRITE 0 308 1
-szwn : Success
-WRITE 30 308 1
-alzc : Success
-GET (round 10)
-GET (round 10)
-ADD 140 101 1
-WRITE 40 21 1
-WRITE 30 21 1
-WRITE 10 101 2
-WRITE 30 101 2
-ADD 180 101 1
-WRITE 0 101 2
-DELETE 30 101
-WRITE 0 21 1
-alzc: Fail [53]
-JOINING 140
-DELETE 0 21
-JOINING 180
-szwn: Success [21: vpwquzyfigypopucnguc]
-LEAVE (round 11)
+GET (round 7)
+olsq: Success [198: mvjfcghlypwbpaiydiop]
+READ Actor[akka://coordinator_test/user/$c#-1511476026] 40 198 mvjfcghlypwbpaiydiop
+bahs: Fail [107]
+///// STARTING ROUND 8
+SET (round 8)
+GET (round 8)
+bahs : Success
+olsq: Fail [107]
+///// STARTING ROUND 9
+LEAVE (round 9)
 LEAVE 40
-READ Actor[akka://coordinator_test/user/$c#-716287130] 30 21 vpwquzyfigypopucnguc
-DELETE 10 101
+WRITE 20 342 2
+///// STARTING ROUND 10
+LEAVE (round 10)
+LEAVE 10
+WRITE 30 342 2
+WRITE 10 342 2
+ADD 30 198 org.example.Node$Entry@58bba3f2
+ADD 30 92 org.example.Node$Entry@4699d4c6
+ADD 70 342 org.example.Node$Entry@1f85f5c9
+///// STARTING ROUND 11
+SET (round 11)
+SET (round 11)
+bahs : Success
+WRITE 20 92 2
+olsq : Success
+///// STARTING ROUND 12
 JOIN (round 12)
-JOIN (round 13)
-11:16:57.932 [coordinator_test-akka.actor.default-dispatcher-10] ERROR akka.actor.OneForOneStrategy - / by zero
-java.lang.ArithmeticException: / by zero
-	at org.example.Node.getResponsibles(Node.java:112)
-	at org.example.Node.receiveTopology(Node.java:465)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
-	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
-	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
-	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at akka.actor.Actor.aroundReceive(Actor.scala:537)
-	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
-	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
-	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
-	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
-	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
-	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
-	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
-	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
-	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
-	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
-	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
-	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
-ADD 180 21 org.example.Node$Entry@32cd7052
-ADD 140 21 org.example.Node$Entry@32cd7052
-JOIN (round 14)
-DELETE 40 21
-11:16:58.067 [coordinator_test-akka.actor.default-dispatcher-4] ERROR akka.actor.OneForOneStrategy - / by zero
-java.lang.ArithmeticException: / by zero
-	at org.example.Node.getResponsibles(Node.java:112)
-	at org.example.Node.receiveTopology(Node.java:465)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
-	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
-	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
-	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at akka.actor.Actor.aroundReceive(Actor.scala:537)
-	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
-	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
-	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
-	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
-	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
-	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
-	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
-	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
-	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
-	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
-	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
-	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
-JOIN (round 15)
-JOINING 100
-JOIN (round 16)
-ADD 310 308 1
-ADD 310 101 2
-ADD 170 101 2
-DELETE 0 101
-JOINING 310
-DELETE 30 308
-JOINING 170
-SET (round 17)
-GET (round 17)
-11:16:58.460 [coordinator_test-akka.actor.default-dispatcher-8] ERROR akka.actor.OneForOneStrategy - / by zero
-java.lang.ArithmeticException: / by zero
-	at org.example.Node.getResponsibles(Node.java:112)
-	at org.example.Node.receiveSet(Node.java:253)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
-	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
-	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
-	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
-	at akka.actor.Actor.aroundReceive(Actor.scala:537)
-	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
-	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
-	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
-	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
-	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
-	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
-	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
-	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
-	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
-	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
-	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
-	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
+WRITE 30 92 2
+WRITE 320 92 2
+WRITE 30 92 3
+WRITE 20 92 3
+WRITE 320 92 3
+READ Actor[akka://coordinator_test/user/$p#-1559303593] 120 92 lmdvljupckuigaolcxcu
+ADD 120 92 3
+READ Actor[akka://coordinator_test/user/$p#-1559303593] 120 198 mvjfcghlypwbpaiydiop
+ADD 120 198 1
+DELETE 120 198
+JOINING 120
+DELETE 30 92
+///// STARTING ROUND 13
+GET (round 13)
+GET (round 13)
+olsq: Fail [107]
+bahs: Fail [107]
+///// STARTING ROUND 14
+GET (round 14)
+GET (round 14)
+bahs: Fail [107]
+olsq: Success [198: mvjfcghlypwbpaiydiop]
+READ Actor[akka://coordinator_test/user/$c#-1511476026] 30 198 mvjfcghlypwbpaiydiop
+///// STARTING ROUND 15
+GET (round 15)
+SET (round 15)
+olsq : Success
+WRITE 20 92 4
+bahs: Fail [107]
+///// STARTING ROUND 16
+LEAVE (round 16)
+LEAVE 20
+WRITE 320 92 4
+WRITE 120 92 4
+ADD 30 92 org.example.Node$Entry@46572bd2
+ADD 120 342 org.example.Node$Entry@1f85f5c9
+ADD 70 198 org.example.Node$Entry@58bba3f2
+///// STARTING ROUND 17
+LEAVE (round 17)
+LEAVE 70
+ADD 120 198 org.example.Node$Entry@58bba3f2
+ADD 320 342 org.example.Node$Entry@1f85f5c9
+///// STARTING ROUND 18
 JOIN (round 18)
-11:16:58.575 [coordinator_test-akka.actor.default-dispatcher-4] ERROR akka.actor.OneForOneStrategy - / by zero
-java.lang.ArithmeticException: / by zero
-	at org.example.Node.getResponsibles(Node.java:112)
-	at org.example.Node.receiveTopology(Node.java:465)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:24)
-	at akka.japi.pf.UnitCaseStatement.apply(CaseStatements.scala:20)
-	at scala.PartialFunction.applyOrElse(PartialFunction.scala:214)
-	at scala.PartialFunction.applyOrElse$(PartialFunction.scala:213)
-	at akka.japi.pf.UnitCaseStatement.applyOrElse(CaseStatements.scala:20)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:269)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at scala.PartialFunction$OrElse.applyOrElse(PartialFunction.scala:270)
-	at akka.actor.Actor.aroundReceive(Actor.scala:537)
-	at akka.actor.Actor.aroundReceive$(Actor.scala:535)
-	at akka.actor.AbstractActor.aroundReceive(AbstractActor.scala:219)
-	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)
-	at akka.actor.ActorCell.invoke(ActorCell.scala:547)
-	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)
-	at akka.dispatch.Mailbox.run(Mailbox.scala:231)
-	at akka.dispatch.Mailbox.exec(Mailbox.scala:243)
-	at java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)
-	at java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)
-	at java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)
-	at java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)
-	at java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)
-szwn: Fail [53]
+READ Actor[akka://coordinator_test/user/$i#-1913666577] 50 198 mvjfcghlypwbpaiydiop
+ADD 50 198 1
+READ Actor[akka://coordinator_test/user/$i#-1913666577] 50 342 plogkuzpxgvhmgaocfzd
+ADD 50 342 2
+READ Actor[akka://coordinator_test/user/$i#-1913666577] 50 92 hwiywodnxcodnwzndlph
+ADD 50 92 4
+DELETE 320 342
+DELETE 120 198
+DELETE 50 92
+JOINING 50
+///// STARTING ROUND 19
 LEAVE (round 19)
-LEAVE 170
-ADD 0 101 org.example.Node$Entry@33185494
-ADD 10 101 org.example.Node$Entry@33185494
-ADD 140 101 org.example.Node$Entry@33185494
-GET (round 20)
-SET (round 20)
-szwn : Success
-WRITE 140 21 2
-alzc: Success [308: urhyzqsxqauyliuiwiux]
-READ Actor[akka://coordinator_test/user/$b#738664517] 140 308 urhyzqsxqauyliuiwiux
-LEAVE (round 21)
 LEAVE 30
-WRITE 100 21 2
-WRITE 30 21 2
-ADD 180 21 org.example.Node$Entry@17a3ab6f
-JOIN (round 22)
-ADD 280 101 2
-DELETE 0 101
-DELETE 10 101
-DELETE 310 101
+ADD 50 92 org.example.Node$Entry@46572bd2
+ADD 320 342 org.example.Node$Entry@1f85f5c9
+ADD 120 198 org.example.Node$Entry@58bba3f2
+///// STARTING ROUND 20
+LEAVE (round 20)
+Can't have less than N nodes
+///// STARTING ROUND 21
+GET (round 21)
+SET (round 21)
+olsq : Success
+WRITE 320 198 2
+bahs: Success [198: mvjfcghlypwbpaiydiop]
+READ Actor[akka://coordinator_test/user/$b#-106336814] 50 198 mvjfcghlypwbpaiydiop
+///// STARTING ROUND 22
+SET (round 22)
+GET (round 22)
+WRITE 120 198 2
+WRITE 50 198 2
+bahs : Success
+olsq: Success [342: plogkuzpxgvhmgaocfzd]
+READ Actor[akka://coordinator_test/user/$c#-1511476026] 50 342 plogkuzpxgvhmgaocfzd
+///// STARTING ROUND 23
+GET (round 23)
 SET (round 23)
-SET (round 23)
-JOINING 280
-alzc : Success
-szwn : Success
+WRITE 320 107 1
+WRITE 120 107 1
+olsq : Success
+WRITE 50 107 1
+WRITE 320 342 3
+WRITE 120 342 3
+WRITE 50 342 3
+READ Actor[akka://coordinator_test/user/$b#-106336814] 320 107 laujraaseiuqkvaenbiy
+bahs: Success [107: laujraaseiuqkvaenbiy]
+///// STARTING ROUND 24
 GET (round 24)
-GET (round 24)
-WRITE 140 101 3
-WRITE 10 308 2
-WRITE 0 308 2
-WRITE 180 101 3
-WRITE 280 101 3
-WRITE 310 308 2
-READ Actor[akka://coordinator_test/user/$b#738664517] 10 21 cepsovzioneupibfuams
-alzc: Success [21: cepsovzioneupibfuams]
+SET (round 24)
+bahs: Success [92: hwiywodnxcodnwzndlph]
+olsq : Success
+READ Actor[akka://coordinator_test/user/$b#-106336814] 120 92 hwiywodnxcodnwzndlph
+///// STARTING ROUND 25
 GET (round 25)
-GET (round 25)
-szwn: Success [101: qgixywydafhsfspnyvnu]
-READ Actor[akka://coordinator_test/user/$c#-716287130] 10 101 qgixywydafhsfspnyvnu
-alzc: Success [21: cepsovzioneupibfuams]
-READ Actor[akka://coordinator_test/user/$b#738664517] 280 21 cepsovzioneupibfuams
-LEAVE (round 26)
-LEAVE 120
-szwn: Success [21: cepsovzioneupibfuams]
-READ Actor[akka://coordinator_test/user/$c#-716287130] 100 21 cepsovzioneupibfuams
-SET (round 27)
-GET (round 27)
-alzc : Success
-WRITE 310 101 1
-WRITE 0 101 1
-READ Actor[akka://coordinator_test/user/$c#-716287130] 140 308 rqyaivxvybdbowjydgff
-szwn: Success [308: rqyaivxvybdbowjydgff]
+SET (round 25)
+WRITE 120 107 2
+WRITE 50 107 2
+olsq : Success
+WRITE 320 107 2
+WRITE 120 342 4
+READ Actor[akka://coordinator_test/user/$b#-106336814] 50 107 cfnvmzhkadbwtzydzeus
+bahs: Success [107: cfnvmzhkadbwtzydzeus]
+///// STARTING ROUND 26
+JOIN (round 26)
+WRITE 320 342 4
+WRITE 50 342 4
+READ Actor[akka://coordinator_test/user/$u#1136931529] 170 198 cbomaisawyxzkmhwjhtq
+ADD 170 198 2
+READ Actor[akka://coordinator_test/user/$u#1136931529] 170 92 hwiywodnxcodnwzndlph
+ADD 170 92 4
+READ Actor[akka://coordinator_test/user/$u#1136931529] 170 342 lhlyvgruuvasvlqdzfem
+ADD 170 342 4
+READ Actor[akka://coordinator_test/user/$u#1136931529] 170 107 cfnvmzhkadbwtzydzeus
+ADD 170 107 2
+DELETE 320 342
+DELETE 50 107
+DELETE 50 92
+DELETE 170 198
+JOINING 170
+///// STARTING ROUND 27
+JOIN (round 27)
+READ Actor[akka://coordinator_test/user/$L#-1602273331] 340 198 cbomaisawyxzkmhwjhtq
+ADD 340 198 2
+READ Actor[akka://coordinator_test/user/$L#-1602273331] 340 342 lhlyvgruuvasvlqdzfem
+ADD 340 342 4
+DELETE 340 342
+JOINING 340
+DELETE 120 198
+///// STARTING ROUND 28
 JOIN (round 28)
-WRITE 140 101 1
-ADD 240 101 1
-ADD 240 101 3
-DELETE 310 101
-JOINING 240
-DELETE 0 101
+READ Actor[akka://coordinator_test/user/$m#-705253114] 90 342 lhlyvgruuvasvlqdzfem
+ADD 90 342 4
+READ Actor[akka://coordinator_test/user/$m#-705253114] 90 107 cfnvmzhkadbwtzydzeus
+ADD 90 107 2
+READ Actor[akka://coordinator_test/user/$m#-705253114] 90 92 hwiywodnxcodnwzndlph
+ADD 90 92 4
+DELETE 90 107
+DELETE 90 92
+JOINING 90
+DELETE 170 342
+///// STARTING ROUND 29
 JOIN (round 29)
-JOINING 220
+READ Actor[akka://coordinator_test/user/$t#197127828] 160 92 hwiywodnxcodnwzndlph
+ADD 160 92 4
+READ Actor[akka://coordinator_test/user/$t#197127828] 160 107 cfnvmzhkadbwtzydzeus
+ADD 160 107 2
+JOINING 160
+DELETE 320 107
+DELETE 320 92

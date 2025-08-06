@@ -1,6 +1,7 @@
 package org.example;
 
 import static org.example.App.MSG_MAX_DELAY;
+import static org.example.App.N;
 
 import java.io.Serializable;
 import java.util.*;
@@ -17,7 +18,6 @@ import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
 import org.example.msg.Leave.AnnounceLeavingMsg;
-import org.example.msg.Leave.TransferItemsMsg;
 
 /**
  * The class node represents a node in the system.
@@ -42,6 +42,8 @@ public class Node extends AbstractActor {
     private boolean crashed;
     private Random rnd;
     private int joiningQuorum;
+    private boolean is_joining;
+    private boolean is_joining_2;
 
     private ActorRef coordinator;
 
@@ -109,14 +111,13 @@ public class Node extends AbstractActor {
         if (i==this.peers.size()) { i = 0; }
         // collect the N peers that are responsible for the data item (we treat the
         // list like a "circular vector")
-        for (int j=0; j<App.N; j++) {
+        for (int j = 0; j< N; j++) {
             ret.add(this.peers.get((i+j)%this.peers.size()));
         }
         return ret;
     }
 
     /// DEBUG
-
 
     private void receiveDebugAddNode(Debug.AddNodeMsg msg) {
         // Find the index where to put the new peer and insert it
@@ -235,6 +236,8 @@ public class Node extends AbstractActor {
         this.rnd = new Random();
         this.crashed = false;
         this.joiningQuorum = 0;
+        this.is_joining = false;
+        this.is_joining_2 = false;
     }
 
     static public Props props(int id) {
@@ -415,7 +418,7 @@ public class Node extends AbstractActor {
         }
         // Success message creation and send
         if (latestEntry!=null){
-            transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value), getSelf());
+            transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version), getSelf());
 
             // debug
             System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
@@ -441,114 +444,90 @@ public class Node extends AbstractActor {
 
     // JOIN
 
-    /**
-     * Join.InitiateMsg handler; sends the network topology to the joining node.
-     *
-     * @param msg Join.InitiateMsg message
-     */
-    private void receiveJoinInitiate(Join.InitiateMsg msg) {
-        if (this.crashed) return;
+    private void receiveJoinInitiate(Join.InitiateMsg msg){
+        if (this.crashed) {return;}
 
-        // Join.TopologyMsg creation and send
-        this.joiningQuorum = 0;
-        sendMessageDelay(getSender(), new Join.TopologyMsg(this.peers));
+        this.is_joining = true;
+
+        sendMessageDelay(msg.bootstrapping_peer, new Join.TopologyRequestMsg());
+
     }
 
-    /**
-     * Join.TopologyMsg handler; the joining node receives the network topology and sends a message to get the data
-     * it is responsible for.
-     *
-     * @param msg Join.TopologyMsg message
-     */
-    // TODO: test
-    private void receiveTopology(Join.TopologyMsg msg) {
-        if (this.crashed) return;
-        this.peers.clear();
-        this.storage.clear();
-        this.peers.addAll(msg.peers);
+    private void receiveTopologyRequest (Join.TopologyRequestMsg msg){
+        if (this.crashed) {return;}
+        sendMessageDelay(getSender(), new Join.TopologyResponseMsg(this.peers));
+    }
+
+    private void receiveTopologyResponse (Join.TopologyResponseMsg msg){
+        if (!this.is_joining) {return;}
+        this.peers = msg.peers;
 
         int myIndex = 0;
         while (myIndex < this.peers.size() && this.peers.get(myIndex).id < this.id) {myIndex++;}
-        for (int i=-App.N+1; i<App.N; i++) {
-            int j = (i+myIndex+this.peers.size())%this.peers.size();
-            sendMessageDelay(peers.get(j).ref, new Join.ResponsibilityRequestMsg(this.id));
+
+        sendMessageDelay(this.peers.get(myIndex%this.peers.size()).ref, new Join.ResponsibilityRequestMsg(this.id));
+
+        // TimeoutMsg creation and send
+        getContext().system().scheduler().scheduleOnce(
+                Duration.create(App.T, TimeUnit.MILLISECONDS),
+                getSelf(),
+                new Join.TimeoutMsg(), getContext().system().dispatcher(),
+                getSelf()
+        );
+    }
+
+    private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg){
+        if (this.crashed) {return;}
+        sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
+                .filter(k -> k<msg.joining_id || peers.size()<N)
+                .collect(Collectors.toSet())));
+    }
+
+    private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg){
+        if (!is_joining) {return;}
+
+        this.is_joining = false;
+
+        if (msg.keys.isEmpty()){
+            Stream<Peer> allPeers = Stream.concat(
+                    this.peers.stream(),
+                    Stream.of(new Peer(this.id, getSelf()))
+            );
+            allPeers.forEach(peer -> {
+                // debug
+                this.coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
+                // Join.AnnouncePresenceMsg creation and send
+                sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
+            });
+        }
+
+        this.is_joining_2 = true;
+        this.joiningQuorum = msg.keys.size();
+
+        for (int k : msg.keys){
+            sendMessageDelay(getSelf(), new Get.InitiateMsg(k));
         }
     }
 
-    /**
-     * Join.ResponsibilityRequestMsg handler; it finds the data items the joining node is responsible for and sends them
-     * to it.
-     *
-     * @param msg Join.ResponsibilityRequestMsg message
-     */
-    private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg) {
-        if (this.crashed) return;
-        // TODO: Trovare un algoritmo più elegante
+    private void receiveJoinTimeout(Join.TimeoutMsg msg){
+        if (!is_joining){return;}
 
-        int newId = msg.nodeId;
-        ActorRef newRef = getSender();
+        this.is_joining = false;
 
-        HashMap<Integer, Entry> ret = new HashMap<>();
-        // Get a new list of all the nodes which also contains the new one
-        List<Peer> allNodes = new LinkedList<Peer>();
-        int last_id = -1;
-        for (Peer peer: peers) {
-            if (last_id < newId && newId < peer.id) {
-                allNodes.add(new Peer(newId, newRef));
-            }
-            allNodes.add(peer);
-            last_id = peer.id;
-        }
-        if (newId > peers.get(peers.size()-1).id) {
-            allNodes.add(new Peer(newId, newRef));
-        }
-
-        // Find the data the joining node is responsible for
-        for (HashMap.Entry<Integer, Entry> dataItem: storage.entrySet()) {
-            int key = dataItem.getKey();
-            Entry entry = dataItem.getValue();
-
-            int i = 0;
-            while (i<allNodes.size() && allNodes.get(i).id < key) {
-                i++;
-            }
-            if (i==allNodes.size()) { i = 0; }
-            for (int j=0; j<App.N; j++) {
-                Peer current = allNodes.get((i+j)%allNodes.size());
-                if (current.ref.equals(newRef)) {
-                    ret.put(key, entry);
-                    break;
-                }
-            }
-
-        }
-
-        // Join.ResponsibilityResponseMsg creation and send
-        sendMessageDelay(getSender(), new Join.ResponsibilityResponseMsg(ret));
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
-    /**
-     * Join.ResponsibilityResponseMsg handler; it checks the quorum, inserts the most-up-to-date data items in the
-     * joining node local storage and announces the presence of the new node to the others.
-     *
-     * @param msg
-     */
-    private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg) {
-        if (this.crashed) return;
-        // check quorum
-        if (joiningQuorum >= App.R) {return;}
-        // insert most-up-to-date data items
-        for (HashMap.Entry<Integer, Entry> entry: msg.responsibility.entrySet()) {
-            Entry currentValue = storage.get(entry.getKey());
-            if (currentValue == null || currentValue.version < entry.getValue().version) {
-                this.storage.put(entry.getKey(), entry.getValue());
-                System.out.println("ADD "+this.id+" "+entry.getKey()+" "+entry.getValue().version);
-            }
-        }
-        joiningQuorum++;
+    private void receiveGetSuccess(Get.SuccessMsg msg){
+        if (!is_joining_2) {return;}
 
-        // we reach the quorum
-        if (joiningQuorum>=App.R) {
+        this.joiningQuorum--;
+
+        this.storage.put(msg.key, new Entry(msg.value, msg.version));
+
+        // debug
+        System.out.println("ADD "+this.id+" "+msg.key+" "+msg.version);
+
+        if (this.joiningQuorum==0){
             Stream<Peer> allPeers = Stream.concat(
                 this.peers.stream(),
                 Stream.of(new Peer(this.id, getSelf()))
@@ -560,6 +539,12 @@ public class Node extends AbstractActor {
                 sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
             });
         }
+    }
+
+    private void receiveGetFail(Get.FailMsg msg){
+        if (!is_joining_2) {return;}
+        is_joining_2 = false;
+        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     /**
@@ -733,7 +718,7 @@ public class Node extends AbstractActor {
         // Crash.RequestDataMsg creation
         Crash.RequestDataMsg requestDataMsg = new Crash.RequestDataMsg(this.id);
         while (this.peers.get(myIndex).id != this.id) {myIndex++;}
-        for (int i=-App.N+1; i<App.N; i++) {
+        for (int i = -N+1; i< N; i++) {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
             // Crash.RequestDataMsg send
@@ -788,7 +773,11 @@ public class Node extends AbstractActor {
         .match(Get.EntryResponseMsg.class, this::receiveEntryResponse)
         .match(Get.TimeoutMsg.class, this::receiveGetTimeout)
         .match(Join.InitiateMsg.class, this::receiveJoinInitiate)
-        .match(Join.TopologyMsg.class, this::receiveTopology)
+        .match(Join.TopologyRequestMsg.class, this::receiveTopologyRequest)
+        .match(Join.TopologyResponseMsg.class, this::receiveTopologyResponse)
+        .match(Join.TimeoutMsg.class, this::receiveJoinTimeout)
+        .match(Get.SuccessMsg.class, this::receiveGetSuccess)
+        .match(Get.FailMsg.class, this::receiveGetFail)
         .match(Join.ResponsibilityRequestMsg.class, this::receiveResponsibilityRequest)
         .match(Join.ResponsibilityResponseMsg.class, this::receiveResponsibilityResponse)
         .match(Join.AnnouncePresenceMsg.class, this::receivePresenceAnnouncement)

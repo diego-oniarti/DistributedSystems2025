@@ -92,6 +92,7 @@ public class Get {
         /** Value of the data item.
          */
         public final String value;
+        public final int version;
 
         /**
          * Constructor of SuccessMsg class.
@@ -99,9 +100,10 @@ public class Get {
          * @param key key of the data item
          * @param value value of the data item
          */
-        public SuccessMsg(int key, String value) {
+        public SuccessMsg(int key, String value, int version) {
             this.key = key;
             this.value = value;
+            this.version = version;
         }
     }
     /**

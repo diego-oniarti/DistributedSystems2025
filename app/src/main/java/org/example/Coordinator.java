@@ -107,6 +107,7 @@ public class Coordinator extends AbstractActor {
         }
 
         System.out.println("///// STARTING ROUND "+current_round);
+        System.err.println("///// STARTING ROUND "+current_round);
 
         ongoing_actions = 0;
 
@@ -130,7 +131,7 @@ public class Coordinator extends AbstractActor {
             Peer node;
             do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
 
-            switch (rng.nextInt(4)){
+            switch (rng.nextInt(2)){
                 // JOIN
                 case 0:
                     System.out.println("JOIN (round "+this.current_round+")");
@@ -142,7 +143,7 @@ public class Coordinator extends AbstractActor {
                     Peer new_node = nodes_out.removeRandom();
                     nodes_in.add(new_node);
 
-                    node.ref.tell(new Join.InitiateMsg(), new_node.ref);
+                    new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
                     break;
                 // LEAVE
                 case 1:

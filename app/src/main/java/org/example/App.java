@@ -34,14 +34,14 @@ public class App {
         // System.out.println(e);
 
         // test about set in a dynamic network (join and leave operations)
-        // d.dynamicTest("set_dynamic.txt");
-        // String e_dynamic = d.check_dynamic_set_file();
-        // System.out.println(e_dynamic);
+        d.dynamicTest("set_dynamic.txt");
+        String e_dynamic = d.check_dynamic_set_file();
+        System.out.println(e_dynamic);
 
         // test about set and get operations (seq consistency check) in a dynamic network
-        d.dynamicTest("seq_cons.txt");
-        String e_cons = d.check_consistency_file();
-        System.out.println(e_cons);
+        // d.dynamicTest("seq_cons.txt");
+        // String e_cons = d.check_consistency_file();
+        // System.out.println(e_cons);
 
     }
 }
