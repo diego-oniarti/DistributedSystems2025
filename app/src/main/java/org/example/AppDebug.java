@@ -271,7 +271,7 @@ public class AppDebug {
      *
      * @return a String explaining errors or success
      */
-     public String check_consistency_file() {
+    public String check_consistency_file() {
         // read operations of clients
         Map<String, List<Pair<Integer, String>>> history = new HashMap<>();  // Client_name -> [(item_key, item_value)]
         for (NamedClient client: clients) {
@@ -293,7 +293,9 @@ public class AppDebug {
                     Integer item_key = scan.nextInt();
                     String item_value = scan.next();
 
-                    history.get(client).add(new Pair<Integer,String>(item_key, item_value));
+                    if (history.get(client) != null) {
+                        history.get(client).add(new Pair<Integer,String>(item_key, item_value));
+                    }
 
                     // create node
                     graph.addNode(item_key.toString()+"."+item_value);
@@ -403,89 +405,89 @@ public class AppDebug {
                 String next = scan.next();
                 switch (scan.next()) {
                     case "WRITE":               // WRITE node_id item_key version
-                        node_id = scan.nextInt();
-                        item_key = scan.nextInt();
-                        item_version = scan.nextInt();
+                    node_id = scan.nextInt();
+                    item_key = scan.nextInt();
+                    item_version = scan.nextInt();
 
-                        // Register the new item or update the version
-                        boolean item_is_present = items.get(item_key) != null;
-                        if (!item_is_present || item_is_present && items.get(item_key) < item_version) {
-                            items.put(item_key, item_version);
-                        }
+                    // Register the new item or update the version
+                    boolean item_is_present = items.get(item_key) != null;
+                    if (!item_is_present || item_is_present && items.get(item_key) < item_version) {
+                        items.put(item_key, item_version);
+                    }
 
-                        // Register the new value for the node
-                        storage.get(node_id).put(item_key, item_version);
-                        break;
+                    // Register the new value for the node
+                    storage.get(node_id).put(item_key, item_version);
+                    break;
                     // when a joining node/node inserts a data item it is now responsible for
                     case "ADD":                 //  ADD node_id item_key version
-                        node_id = scan.nextInt();
-                        item_key = scan.nextInt();
-                        item_version = scan.nextInt();
-                        // we register the node that was added to the joining node
-                        if (!storage.containsKey(node_id)){
-                            storage.put(node_id,new HashMap<>());
-                        }
-                        storage.get(node_id).put(item_key, item_version);
-                        break;
+                    node_id = scan.nextInt();
+                    item_key = scan.nextInt();
+                    item_version = scan.nextInt();
+                    // we register the node that was added to the joining node
+                    if (!storage.containsKey(node_id)){
+                        storage.put(node_id,new HashMap<>());
+                    }
+                    storage.get(node_id).put(item_key, item_version);
+                    break;
                     // when a node deletes a data item the joining node is now responsible for
                     case "DELETE":              //  DELETE node_id item_key
-                        node_id = scan.nextInt();
-                        item_key = scan.nextInt();
-                        // we register the node that was removed because a new node joins the network
-                        if (!storage.containsKey(node_id)){
-                            storage.put(node_id,new HashMap<>());
-                        }
-                        storage.get(node_id).remove(item_key);
-                        break;
+                    node_id = scan.nextInt();
+                    item_key = scan.nextInt();
+                    // we register the node that was removed because a new node joins the network
+                    if (!storage.containsKey(node_id)){
+                        storage.put(node_id,new HashMap<>());
+                    }
+                    storage.get(node_id).remove(item_key);
+                    break;
                     case "JOINING":             // JOINING node_id
-                        n_joins++;
-                        node_id=scan.nextInt();
+                    n_joins++;
+                    node_id=scan.nextInt();
 
-                        // find the index of the joining node in the nodes out list
-                        int joining_index = 0;
-                        for (Peer p: nodes_out){
-                            if (p.id!=node_id){
-                                joining_index++;
-                            }else{
-                                break;
-                            }
+                    // find the index of the joining node in the nodes out list
+                    int joining_index = 0;
+                    for (Peer p: nodes_out){
+                        if (p.id!=node_id){
+                            joining_index++;
+                        }else{
+                            break;
                         }
+                    }
 
-                        // if there is, we insert the joining node to the nodes list maintaining the order, needed for
-                        // checks
-                        if (joining_index!=nodes_out.size()){
-                            Peer joining_node = nodes_out.remove(joining_index);
-                            int i=0;
-                            while (i<nodes.size() && joining_node.id > nodes.get(i).id) {
-                                i++;
-                            }
-                            nodes.add(i, joining_node);
+                    // if there is, we insert the joining node to the nodes list maintaining the order, needed for
+                    // checks
+                    if (joining_index!=nodes_out.size()){
+                        Peer joining_node = nodes_out.remove(joining_index);
+                        int i=0;
+                        while (i<nodes.size() && joining_node.id > nodes.get(i).id) {
+                            i++;
                         }
+                        nodes.add(i, joining_node);
+                    }
 
-                        break;
+                    break;
                     case "LEAVE":               // LEAVE node_id
-                        n_leave++;
-                        node_id= scan.nextInt();
+                    n_leave++;
+                    node_id= scan.nextInt();
 
-                        // find the index of the leaving node in the nodes list
-                        int leave_index = 0;
-                        for (Peer p: nodes){
-                            if (p.id!=node_id){
-                                leave_index++;
-                            }else{
-                                break;
-                            }
+                    // find the index of the leaving node in the nodes list
+                    int leave_index = 0;
+                    for (Peer p: nodes){
+                        if (p.id!=node_id){
+                            leave_index++;
+                        }else{
+                            break;
                         }
+                    }
 
-                        // if there is, we insert the leaving node to the nodes out list
-                        if (leave_index!=nodes.size()){
-                            Peer leaving_node = nodes.remove(leave_index);
-                            this.nodes_out.add(leaving_node);
-                            storage.remove(leaving_node.id);
-                        }
+                    // if there is, we insert the leaving node to the nodes out list
+                    if (leave_index!=nodes.size()){
+                        Peer leaving_node = nodes.remove(leave_index);
+                        this.nodes_out.add(leaving_node);
+                        storage.remove(leaving_node.id);
+                    }
 
                     default:
-                        scan.nextLine();
+                    scan.nextLine();
                 }
             }
             scan.close();

@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.util.LinkedList;
 
 import org.example.Node.Peer;
+import org.example.shared.Operation;
 
 /**
  * The class contains all the messages sent for debugging purposes.
@@ -73,7 +74,15 @@ public class Debug {
     /**
      * This class represents the message to decrease the ongoing_action parameter of the coordinator.
      */
-    public static class DecreaseOngoingMsg implements Serializable{ }
+    public static class DecreaseOngoingMsg implements Serializable{
+        public final Operation operation;
+        public DecreaseOngoingMsg(Operation operation) {
+            this.operation = operation;
+        }
+        public DecreaseOngoingMsg() {
+            this.operation = null;
+        }
+    }
 
     /**
      * This class represents the message to announce the coordinator to the nodes.

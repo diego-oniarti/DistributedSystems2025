@@ -18,6 +18,8 @@ import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
 import org.example.msg.Leave.AnnounceLeavingMsg;
+import org.example.shared.Operation;
+import org.example.shared.Operation.Ops;
 
 /**
  * The class node represents a node in the system.
@@ -43,7 +45,8 @@ public class Node extends AbstractActor {
     private Random rnd;
     private int joiningQuorum;
     private boolean is_joining;
-    private boolean is_joining_2;
+
+    private java.util.Set<Integer> ongoing_set_keys;
 
     private ActorRef coordinator;
 
@@ -237,7 +240,7 @@ public class Node extends AbstractActor {
         this.crashed = false;
         this.joiningQuorum = 0;
         this.is_joining = false;
-        this.is_joining_2 = false;
+        this.ongoing_set_keys = new HashSet<>();
     }
 
     static public Props props(int id) {
@@ -254,6 +257,7 @@ public class Node extends AbstractActor {
      */
     private void receiveSet(Set.InitiateMsg msg) {
         if (this.crashed) return;
+
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
         // VersionRequest message creation
@@ -284,6 +288,11 @@ public class Node extends AbstractActor {
      */
     private void receiveVersionRequest(Set.VersionRequestMsg msg) {
         if (this.crashed) return;
+
+        if (!this.ongoing_set_keys.add(msg.key)) {
+            return;
+        }
+
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
         // VersionResponse message creation and send
@@ -324,6 +333,9 @@ public class Node extends AbstractActor {
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         // UpdateEntry message send
         for (Peer responsible: responsibles) {
+            coordinator.tell(new Debug.IncreaseOngoingMsg(responsible.ref), getSelf());
+        }
+        for (Peer responsible: responsibles) {
             sendMessageDelay(responsible.ref, updateMsg);
         }
     }
@@ -336,7 +348,9 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
+        this.coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
         System.out.println("WRITE "+this.id+" "+msg.key+" "+msg.entry.version);
+        this.ongoing_set_keys.remove(msg.key);
     }
 
     /**
@@ -450,7 +464,6 @@ public class Node extends AbstractActor {
         this.is_joining = true;
 
         sendMessageDelay(msg.bootstrapping_peer, new Join.TopologyRequestMsg());
-
     }
 
     private void receiveTopologyRequest (Join.TopologyRequestMsg msg){
@@ -501,7 +514,6 @@ public class Node extends AbstractActor {
             });
         }
 
-        this.is_joining_2 = true;
         this.joiningQuorum = msg.keys.size();
 
         for (int k : msg.keys){
@@ -514,12 +526,12 @@ public class Node extends AbstractActor {
 
         this.is_joining = false;
 
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        coordinator.tell(new Debug.DecreaseOngoingMsg(
+            new Operation(Ops.JOIN, false, new Peer(this.id, getSelf()))
+        ), getSelf());
     }
 
     private void receiveGetSuccess(Get.SuccessMsg msg){
-        if (!is_joining_2) {return;}
-
         this.joiningQuorum--;
 
         this.storage.put(msg.key, new Entry(msg.value, msg.version));
@@ -542,9 +554,9 @@ public class Node extends AbstractActor {
     }
 
     private void receiveGetFail(Get.FailMsg msg){
-        if (!is_joining_2) {return;}
-        is_joining_2 = false;
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        coordinator.tell(new Debug.DecreaseOngoingMsg(
+
+        ), getSelf());
     }
 
     /**
@@ -649,7 +661,7 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
 
                 // debug
-                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second());
+                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version);
             }
         }
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());

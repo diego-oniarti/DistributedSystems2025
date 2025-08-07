@@ -25,7 +25,6 @@ public class Client extends AbstractActor {
      */
     private void receiveSetSuccess(Set.SuccessMsg msg) {
         System.out.println(this.name + " : Success");
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     /**
@@ -35,13 +34,14 @@ public class Client extends AbstractActor {
      */
     private void receiveSetFail(Set.FailMsg msg) {
         System.out.println(this.name + " : Fail");
+        coordinator.tell(new Debug.IncreaseOngoingMsg(getSelf()), getSelf());
         coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     /**
      * Get.SuccessMsg handler; it prints the success of a get request.
      *
-     * @param msg Fet.SuccessMsg message
+     * @param msg Get.SuccessMsg message
      */
     private void receiveGetSuccess(Get.SuccessMsg msg) {
         System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");

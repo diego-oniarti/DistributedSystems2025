@@ -9,7 +9,9 @@ import org.example.msg.*;
 import org.example.msg.Set;
 import org.example.shared.NamedClient;
 import org.example.shared.RngList;
+import org.example.shared.Operation.Ops;
 
+import java.io.File;
 import java.util.*;
 
 import static org.example.App.*;
@@ -44,6 +46,7 @@ public class Coordinator extends AbstractActor {
     private int current_round;
 
     private Random rng;
+    private RngList<String> fruits;
 
     /// CONSTRUCTOR
 
@@ -60,6 +63,9 @@ public class Coordinator extends AbstractActor {
         this.keys = new int[K];
         this.ongoing_actions = 0;
         this.current_round = 0;
+
+        this.fruits = new RngList<>(rng);
+        readFruits();
     }
 
     static public Props props() {
@@ -113,15 +119,16 @@ public class Coordinator extends AbstractActor {
 
         // READ and WRITE
         if (rng.nextBoolean()){
-            ongoing_actions = clients.size();
+            ongoing_actions = 0;
             for (NamedClient client : clients){
                 int key = keys[rng.nextInt(K)];
                 ActorRef node = nodes_in.getRandom().ref;
                 if (rng.nextBoolean()) {
                     // WRITE
                     System.out.println(("SET (round "+this.current_round+")"));
-                    node.tell(new Set.InitiateMsg(key, generateRandomString(20)), client.ref);
+                    node.tell(new Set.InitiateMsg(key, get_fruit_name()), client.ref);
                 } else {
+                    ongoing_actions++;
                     // READ
                     System.out.println(("GET (round "+this.current_round+")"));
                     node.tell(new Get.InitiateMsg(key), client.ref);
@@ -134,59 +141,58 @@ public class Coordinator extends AbstractActor {
             switch (rng.nextInt(2)){
                 // JOIN
                 case 0:
-                    System.out.println("JOIN (round "+this.current_round+")");
+                System.out.println("JOIN (round "+this.current_round+")");
 
-                    if (nodes_out.isEmpty()) {
-                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
-                        return;
-                    }
-                    Peer new_node = nodes_out.removeRandom();
-                    nodes_in.add(new_node);
+                if (nodes_out.isEmpty()) {
+                    getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                    return;
+                }
+                Peer new_node = nodes_out.removeRandom();
 
-                    new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
-                    break;
+                new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
+                break;
                 // LEAVE
                 case 1:
-                    System.out.println("LEAVE (round "+this.current_round+")");
+                System.out.println("LEAVE (round "+this.current_round+")");
 
-                    if (nodes_in.size() == N) {
-                        System.out.println("Can't have less than N nodes");
-                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
-                        return;
-                    }
+                if (nodes_in.size() == N) {
+                    System.out.println("Can't have less than N nodes");
+                    getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                    return;
+                }
 
-                    nodes_in.remove(node);
-                    node.ref.tell(new Leave.InitiateMsg(), ActorRef.noSender());
-                    break;
+                nodes_in.remove(node);
+                node.ref.tell(new Leave.InitiateMsg(), ActorRef.noSender());
+                break;
                 // CRASH
                 case 2:
-                    System.out.println("CRASH (round "+this.current_round+")");
+                System.out.println("CRASH (round "+this.current_round+")");
 
-                    // condition to avoid total crash failure
-                    if (crashed_nodes.size()==nodes_in.size()-1) {
-                        System.out.println("Can't crash only remaining node");
-                        getSelf().tell(new Debug.StartRoundMsg(), getSelf());
-                        return;
-                    }
+                // condition to avoid total crash failure
+                if (crashed_nodes.size()==nodes_in.size()-1) {
+                    System.out.println("Can't crash only remaining node");
+                    getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                    return;
+                }
 
-                    crashed_nodes.add(node);
-                    ongoing_actions = 1;
+                crashed_nodes.add(node);
+                ongoing_actions = 1;
 
-                    node.ref.tell(new Crash.InitiateMsg(),ActorRef.noSender());
-                    break;
+                node.ref.tell(new Crash.InitiateMsg(),ActorRef.noSender());
+                break;
                 // RECOVERY
                 case 3:
-                    System.out.println("RECOVERY (round "+this.current_round+")");
+                System.out.println("RECOVERY (round "+this.current_round+")");
 
-                    if (crashed_nodes.size()==0) {
-                        getSelf().tell(new Debug.StartRoundMsg(),getSelf());
-                        return;
-                    }
-                    Peer crashed_node = crashed_nodes.removeRandom();
-                    nodes_in.add(crashed_node);
+                if (crashed_nodes.size()==0) {
+                    getSelf().tell(new Debug.StartRoundMsg(),getSelf());
+                    return;
+                }
+                Peer crashed_node = crashed_nodes.removeRandom();
+                nodes_in.add(crashed_node);
 
-                    crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
-                    break;
+                crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
+                break;
             }
         }
     }
@@ -215,17 +221,29 @@ public class Coordinator extends AbstractActor {
             this.ongoing_actions=0;
             getSelf().tell(new Debug.StartRoundMsg(), ActorRef.noSender());
         }
+        if (msg.operation==null) return;
+        switch (msg.operation.op) {
+            case Ops.JOIN:
+            if (msg.operation.success) {
+                nodes_in.add(msg.operation.peer);
+            }else{
+                nodes_out.add(msg.operation.peer);
+            }
+            break;
+            default:
+            break;
+        }
     }
 
     @Override
     public Receive createReceive() {
         return receiveBuilder()
-            .match(Debug.AddNodesMsg.class, this::receiveAddNodesMsg)
-            .match(Debug.AddClientMsg.class, this::receiveAddClientMsg)
-            .match(Debug.DecreaseOngoingMsg.class, this::receiveDecreaseOngoingMsg)
-            .match(Debug.IncreaseOngoingMsg.class, this::receiveIncreaseOngoingMsg)
-            .match(Debug.StartRoundMsg.class, this::receiveStartRoundMsg)
-            .build();
+        .match(Debug.AddNodesMsg.class, this::receiveAddNodesMsg)
+        .match(Debug.AddClientMsg.class, this::receiveAddClientMsg)
+        .match(Debug.DecreaseOngoingMsg.class, this::receiveDecreaseOngoingMsg)
+        .match(Debug.IncreaseOngoingMsg.class, this::receiveIncreaseOngoingMsg)
+        .match(Debug.StartRoundMsg.class, this::receiveStartRoundMsg)
+        .build();
     }
 
     /**
@@ -258,6 +276,27 @@ public class Coordinator extends AbstractActor {
 
         for (int i=0; i<K; i++){
             keys[i]=rng.nextInt(max_id+10);
+        }
+    }
+
+    private String get_fruit_name() {
+        return this.fruits.removeRandom();
+    }
+
+    /**
+     * Populates the list of fruit names
+     */
+    private void readFruits() {
+        File f = new File("fruits.txt");
+        try {
+            Scanner scan = new Scanner(f);
+            while (scan.hasNextLine()) {
+                String fruit = scan.nextLine();
+                fruits.add(fruit);
+            }
+            scan.close();
+        } catch (Exception e) {
+            System.err.println(e);
         }
     }
 }
