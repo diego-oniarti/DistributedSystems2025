@@ -46,6 +46,7 @@ public class Node extends AbstractActor {
 
     private int joinKeyCount;
     private boolean is_joining;
+    private boolean join_failed;
 
     private int leavingCount;
     private boolean is_leaving;
@@ -105,7 +106,7 @@ public class Node extends AbstractActor {
      */
     private boolean isResponsible(int key, ActorRef node) {
         List<Peer> peers = this.getResponsibles(key);
-        return (!peers.stream().filter(p -> p.ref == node).findFirst().isPresent());
+        return peers.stream().filter(p -> p.ref == node).findFirst().isPresent();
     }
 
     /**
@@ -254,6 +255,7 @@ public class Node extends AbstractActor {
         this.joinKeyCount = 0;
         this.is_joining = false;
         this.ongoing_set_keys = new HashSet<>();
+        this.join_failed = false;
     }
 
     static public Props props(int id) {
@@ -417,6 +419,7 @@ public class Node extends AbstractActor {
      */
     public void receiveEntryRequest(Get.EntryRequestMsg msg) {
         if (this.crashed) return;
+        if (this.ongoing_set_keys.contains(msg.key)) return;
         Entry entry = this.storage.get(msg.key);
         // EntryResponse message creation and send
         sendMessageDelay(getSender(), new Get.EntryResponseMsg(entry, msg.transacition_id));
@@ -510,10 +513,11 @@ public class Node extends AbstractActor {
                     // Join.AnnouncePresenceMsg creation and send
                     sendMessageDelay(ref, new Join.AnnouncePresenceMsg(this.id));
                 });
+            return;
         }
 
         this.joinKeyCount = msg.keys.size();
-
+        this.join_failed = false;
         for (int k : msg.keys){
             sendMessageDelay(getSelf(), new Get.InitiateMsg(k));
         }
@@ -546,6 +550,9 @@ public class Node extends AbstractActor {
     }
 
     private void receiveGetFail(Get.FailMsg msg){
+        if (this.join_failed) return;
+        this.join_failed = true;
+
         coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
 
         System.out.println("JOIN_FAIL"+this.id); // DEBUG
@@ -733,10 +740,14 @@ public class Node extends AbstractActor {
         this.peers = msg.peers;
 
         // Delete elements the recovered node will no more be responsible for
-        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
+        Iterator<HashMap.Entry<Integer,Entry>> it = this.storage.entrySet().iterator();
+        while (it.hasNext()) {
+            HashMap.Entry<Integer,Entry> entry = it.next();
             List<Peer> peers = this.getResponsibles(entry.getKey());
             if (!peers.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
-                this.storage.remove(entry.getKey());
+                // this.storage.remove(entry.getKey());
+                it.remove();
+                System.out.println("DELETE "+this.id+" "+entry.getKey());
             }
         }
 
@@ -784,6 +795,7 @@ public class Node extends AbstractActor {
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
+                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version); // DEBUG
             }
         }
     }
