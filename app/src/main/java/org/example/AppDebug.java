@@ -35,7 +35,7 @@ public class AppDebug {
     /** List of clients */
     public List<NamedClient> clients;
     /** List of nodes in the network */
-    public List<Peer> nodes;
+    public List<Peer> nodes_in;
     /** List of nodes out of the network */
     public List<Peer> nodes_out;
     /** Coordinator */
@@ -45,7 +45,7 @@ public class AppDebug {
     public AppDebug(String name){
         this.system = ActorSystem.create(name);
         this.clients = new ArrayList<>();
-        this.nodes = new ArrayList<>();
+        this.nodes_in = new ArrayList<>();
         this.nodes_out = new ArrayList<>();
 
         this.coordinator = this.system.actorOf(Coordinator.props());
@@ -70,20 +70,20 @@ public class AppDebug {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
             p.ref.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
             if (i<STARTING_NODES){
-                this.nodes.add(p);
+                this.nodes_in.add(p);
             }else{
                 this.nodes_out.add(p);
             }
         }
 
-        for (Peer n1: this.nodes) {
-            for (Peer n2: this.nodes) {
+        for (Peer n1: this.nodes_in) {
+            for (Peer n2: this.nodes_in) {
                 n1.ref.tell(new Debug.AddNodeMsg(n2.ref, n2.id), n2.ref);
             }
         }
 
         LinkedList<Peer> test_in = new LinkedList<>();
-        test_in.addAll(this.nodes);
+        test_in.addAll(this.nodes_in);
         LinkedList<Peer> test_out = new LinkedList<>();
         test_out.addAll(this.nodes_out);
         coordinator.tell(new Debug.AddNodesMsg(test_in,test_out), ActorRef.noSender());
@@ -112,7 +112,7 @@ public class AppDebug {
         for (int i = 0; i<N_SET; i++){
             int key = rng.nextInt(bound);
             String value = generateRandomString(3);
-            this.nodes.get(rng.nextInt(nodes.size())).ref
+            this.nodes_in.get(rng.nextInt(nodes_in.size())).ref
                 .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())).ref);
 
             try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
@@ -142,7 +142,7 @@ public class AppDebug {
         // items inserted in nodes local storage
         Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
 
-        for (Peer p : nodes) {
+        for (Peer p : nodes_in) {
             storage.put(p.id, new HashMap<>());
         }
 
@@ -192,14 +192,14 @@ public class AppDebug {
         for (int item_key : items.keySet()){
             // Find items' location in the ring
             int index = 0;
-            while (index < storage.size() && nodes.get(index).id < item_key){
+            while (index < storage.size() && nodes_in.get(index).id < item_key){
                 index++;
             }
             if (index == storage.size()) { index = 0; }
 
             // Check if all the responsibles have the item
             for (int i = 0; i<N; i++){
-                int responsible_id = nodes.get((index+i)%nodes.size()).id;
+                int responsible_id = nodes_in.get((index+i)%nodes_in.size()).id;
                 if (storage.get(responsible_id).get(item_key) == null) {
                     return "Node " + responsible_id + " has no item " + item_key;
                 }
@@ -238,7 +238,7 @@ public class AppDebug {
 
         for (int i=0; i<N_OP; i++) {
             ActorRef client = clients.get(rng.nextInt(clients.size())).ref;
-            Peer node = nodes.get(rng.nextInt(nodes.size()));
+            Peer node = nodes_in.get(rng.nextInt(nodes_in.size()));
             int key = keys[rng.nextInt(keys.length)];
 
             if (rng.nextBoolean()) {
@@ -386,11 +386,11 @@ public class AppDebug {
         // items inserted in nodes local storage
         Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
 
-        for (Peer p : nodes) {
+        for (Peer p : nodes_in) {
             storage.put(p.id, new HashMap<>());
         }
 
-        int start = nodes.size();
+        int start = nodes_in.size();
         int n_joins = 0;
         int n_leave = 0;
 
@@ -458,10 +458,10 @@ public class AppDebug {
                     if (joining_index!=nodes_out.size()){
                         Peer joining_node = nodes_out.remove(joining_index);
                         int i=0;
-                        while (i<nodes.size() && joining_node.id > nodes.get(i).id) {
+                        while (i<nodes_in.size() && joining_node.id > nodes_in.get(i).id) {
                             i++;
                         }
-                        nodes.add(i, joining_node);
+                        nodes_in.add(i, joining_node);
                     }
 
                     break;
@@ -471,7 +471,7 @@ public class AppDebug {
 
                     // find the index of the leaving node in the nodes list
                     int leave_index = 0;
-                    for (Peer p: nodes){
+                    for (Peer p: nodes_in){
                         if (p.id!=node_id){
                             leave_index++;
                         }else{
@@ -480,8 +480,8 @@ public class AppDebug {
                     }
 
                     // if there is, we insert the leaving node to the nodes out list
-                    if (leave_index!=nodes.size()){
-                        Peer leaving_node = nodes.remove(leave_index);
+                    if (leave_index!=nodes_in.size()){
+                        Peer leaving_node = nodes_in.remove(leave_index);
                         this.nodes_out.add(leaving_node);
                         storage.remove(leaving_node.id);
                     }
@@ -496,7 +496,7 @@ public class AppDebug {
         }
 
         // check number of nodes
-        if (nodes.size()!=start+(n_joins-n_leave)){
+        if (nodes_in.size()!=start+(n_joins-n_leave)){
             return "Final number of nodes in uncorrected";
         }
 
@@ -504,14 +504,14 @@ public class AppDebug {
         for (int item_key : items.keySet()){
             // Find items' location in the ring
             int index = 0;
-            while (index < storage.size() && nodes.get(index).id < item_key){
+            while (index < storage.size() && nodes_in.get(index).id < item_key){
                 index++;
             }
             if (index == storage.size()) { index = 0; }
 
             // Check if all the responsibles have the item
             for (int i = 0; i<N; i++){
-                int responsible_id = nodes.get((index+i)%nodes.size()).id;
+                int responsible_id = nodes_in.get((index+i)%nodes_in.size()).id;
                 if (storage.get(responsible_id).get(item_key) == null) {
                     return "Node " + responsible_id + " has no item " + item_key;
                 }else{

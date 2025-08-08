@@ -14,12 +14,12 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.japi.Pair;
 import org.example.msg.Set;
+import org.example.msg.Debug.Ops;
+import org.example.msg.Leave.AnnounceLeavingMsg;
+
 import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
-import org.example.msg.Leave.AnnounceLeavingMsg;
-import org.example.shared.Operation;
-import org.example.shared.Operation.Ops;
 
 /**
  * The class node represents a node in the system.
@@ -43,8 +43,12 @@ public class Node extends AbstractActor {
     /** Boolean value, if true the node crashed. */
     private boolean crashed;
     private Random rnd;
-    private int joiningQuorum;
+
+    private int joinKeyCount;
     private boolean is_joining;
+
+    private int leavingCount;
+    private boolean is_leaving;
 
     private java.util.Set<Integer> ongoing_set_keys;
 
@@ -81,6 +85,15 @@ public class Node extends AbstractActor {
      */
     private void sendMessageDelay(ActorRef target, Serializable msg) {
         sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
+    }
+
+    private void setTimeout(Serializable msg) {
+        getContext().system().scheduler().scheduleOnce(
+            Duration.create(App.T, TimeUnit.MILLISECONDS),
+            getSelf(),
+            msg, getContext().system().dispatcher(),
+            getSelf()
+        );
     }
 
     /**
@@ -238,7 +251,7 @@ public class Node extends AbstractActor {
         this.id_counter = 0;
         this.rnd = new Random();
         this.crashed = false;
-        this.joiningQuorum = 0;
+        this.joinKeyCount = 0;
         this.is_joining = false;
         this.ongoing_set_keys = new HashSet<>();
     }
@@ -256,23 +269,21 @@ public class Node extends AbstractActor {
      * @param msg Set.InitiateMsg message
      */
     private void receiveSet(Set.InitiateMsg msg) {
-        if (this.crashed) return;
+        if (this.crashed) {
+            System.out.println("!!! IGNORING SET ON CRASHED");
+            return;
+        }
 
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
+        int old_counter = this.id_counter++;
+
         // VersionRequest message creation
-        this.setTransactions.put(this.id_counter, new SetTransaction(msg.key, msg.value, getSender()));
-        Set.VersionRequestMsg reqMsg = new Set.VersionRequestMsg(msg.key, this.id_counter);
+        this.setTransactions.put(old_counter, new SetTransaction(msg.key, msg.value, getSender()));
+        Set.VersionRequestMsg reqMsg = new Set.VersionRequestMsg(msg.key, old_counter);
 
         // TimeoutMsg creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(App.T, TimeUnit.MILLISECONDS),
-            getSelf(),
-            new Set.TimeoutMsg(this.id_counter), getContext().system().dispatcher(),
-            getSelf()
-        );
-
-        this.id_counter++;
+        setTimeout(new Set.TimeoutMsg(old_counter));
 
         // VersionRequestMsg send
         for (Peer peer: responsibles) {
@@ -296,7 +307,7 @@ public class Node extends AbstractActor {
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
         // VersionResponse message creation and send
-        getSender().tell(new Set.VersionResponseMsg(version, msg.transacition_id), getSelf());
+        sendMessageDelay(getSender(), new Set.VersionResponseMsg(version, msg.transacition_id));
     }
 
     /**
@@ -308,6 +319,7 @@ public class Node extends AbstractActor {
     private void receiveVersionResponse(Set.VersionResponseMsg msg) {
         if (this.crashed) return;
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
+
         // select the right transaction
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
@@ -333,9 +345,6 @@ public class Node extends AbstractActor {
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         // UpdateEntry message send
         for (Peer responsible: responsibles) {
-            coordinator.tell(new Debug.IncreaseOngoingMsg(responsible.ref), getSelf());
-        }
-        for (Peer responsible: responsibles) {
             sendMessageDelay(responsible.ref, updateMsg);
         }
     }
@@ -348,7 +357,6 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
-        this.coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
         System.out.println("WRITE "+this.id+" "+msg.key+" "+msg.entry.version);
         this.ongoing_set_keys.remove(msg.key);
     }
@@ -364,7 +372,14 @@ public class Node extends AbstractActor {
         // Set.Fail message creation and send
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
+            for (Peer p: this.getResponsibles(transaction.key)) {
+                sendMessageDelay(p.ref, new Set.UnlockMsg(transaction.key));
+            }
         }
+    }
+
+    private void receiveSetUnlock(Set.UnlockMsg msg) {
+        this.ongoing_set_keys.remove(msg.key);
     }
 
     /// GET(k)
@@ -375,21 +390,19 @@ public class Node extends AbstractActor {
      * @param msg Get.InitiateMsg message
      */
     public void receiveGet(Get.InitiateMsg msg) {
-        if (this.crashed) return;
+        if (this.crashed) {
+            System.out.println("!!! IGNORING GET ON CRASHED " + this.id + " " + msg.key);
+            return;
+        }
         List<Peer> responsibles = this.getResponsibles(msg.key);
 
-        this.getTransactions.put(this.id_counter, new GetTransaction(msg.key, getSender()));
+        int old_counter = this.id_counter++;
+        this.getTransactions.put(old_counter, new GetTransaction(msg.key, getSender()));
         // EntryRequest message creation
-        Get.EntryRequestMsg reqMsg = new Get.EntryRequestMsg(msg.key, this.id_counter);
+        Get.EntryRequestMsg reqMsg = new Get.EntryRequestMsg(msg.key, old_counter);
 
         // Timeout message creation and send
-        getContext().system().scheduler().scheduleOnce(
-            Duration.create(App.T, TimeUnit.MILLISECONDS),
-            getSelf(),
-            new Get.TimeoutMsg(this.id_counter), getContext().system().dispatcher(),
-            getSelf()
-        );
-        this.id_counter++;
+        setTimeout(new Get.TimeoutMsg(old_counter));
 
         // EntryRequest message send
         for (Peer peer: responsibles) {
@@ -424,12 +437,8 @@ public class Node extends AbstractActor {
         if (transaction.replies.size() < App.R) { return; }
         this.getTransactions.remove(msg.transacition_id);
         // find the most updated data item
-        Entry latestEntry = null;
-        for (Entry entry: transaction.replies) {
-            if (entry!=null && (latestEntry==null || entry.version > latestEntry.version)) {
-                latestEntry = entry;
-            }
-        }
+        Entry latestEntry = transaction.replies.stream().filter(Objects::nonNull).max(Comparator.comparingInt(e->e.version)).orElse(null);
+
         // Success message creation and send
         if (latestEntry!=null){
             transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version), getSelf());
@@ -460,9 +469,6 @@ public class Node extends AbstractActor {
 
     private void receiveJoinInitiate(Join.InitiateMsg msg){
         if (this.crashed) {return;}
-
-        this.is_joining = true;
-
         sendMessageDelay(msg.bootstrapping_peer, new Join.TopologyRequestMsg());
     }
 
@@ -472,8 +478,8 @@ public class Node extends AbstractActor {
     }
 
     private void receiveTopologyResponse (Join.TopologyResponseMsg msg){
-        if (!this.is_joining) {return;}
         this.peers = msg.peers;
+        this.is_joining = true;
 
         int myIndex = 0;
         while (myIndex < this.peers.size() && this.peers.get(myIndex).id < this.id) {myIndex++;}
@@ -481,19 +487,14 @@ public class Node extends AbstractActor {
         sendMessageDelay(this.peers.get(myIndex%this.peers.size()).ref, new Join.ResponsibilityRequestMsg(this.id));
 
         // TimeoutMsg creation and send
-        getContext().system().scheduler().scheduleOnce(
-                Duration.create(App.T, TimeUnit.MILLISECONDS),
-                getSelf(),
-                new Join.TimeoutMsg(), getContext().system().dispatcher(),
-                getSelf()
-        );
+        setTimeout(new Join.TimeoutMsg());
     }
 
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg){
         if (this.crashed) {return;}
         sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
-                .filter(k -> k<msg.joining_id || peers.size()<N)
-                .collect(Collectors.toSet())));
+            .filter(k -> k<msg.joining_id || peers.size()<N)
+            .collect(Collectors.toSet())));
     }
 
     private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg){
@@ -502,19 +503,16 @@ public class Node extends AbstractActor {
         this.is_joining = false;
 
         if (msg.keys.isEmpty()){
-            Stream<Peer> allPeers = Stream.concat(
-                    this.peers.stream(),
-                    Stream.of(new Peer(this.id, getSelf()))
-            );
-            allPeers.forEach(peer -> {
-                // debug
-                this.coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
-                // Join.AnnouncePresenceMsg creation and send
-                sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
-            });
+            Stream.concat(
+                this.peers.stream().map(p->p.ref),
+                Stream.of(getSelf())
+            ) .forEach(ref -> {
+                    // Join.AnnouncePresenceMsg creation and send
+                    sendMessageDelay(ref, new Join.AnnouncePresenceMsg(this.id));
+                });
         }
 
-        this.joiningQuorum = msg.keys.size();
+        this.joinKeyCount = msg.keys.size();
 
         for (int k : msg.keys){
             sendMessageDelay(getSelf(), new Get.InitiateMsg(k));
@@ -523,40 +521,34 @@ public class Node extends AbstractActor {
 
     private void receiveJoinTimeout(Join.TimeoutMsg msg){
         if (!is_joining){return;}
-
         this.is_joining = false;
+        coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
 
-        coordinator.tell(new Debug.DecreaseOngoingMsg(
-            new Operation(Ops.JOIN, false, new Peer(this.id, getSelf()))
-        ), getSelf());
+        System.out.println("JOIN_FAIL"+this.id); // DEBUG
     }
 
     private void receiveGetSuccess(Get.SuccessMsg msg){
-        this.joiningQuorum--;
+        this.joinKeyCount--;
 
         this.storage.put(msg.key, new Entry(msg.value, msg.version));
 
-        // debug
-        System.out.println("ADD "+this.id+" "+msg.key+" "+msg.version);
+        System.out.println("ADD "+this.id+" "+msg.key+" "+msg.version); // DEBUG
 
-        if (this.joiningQuorum==0){
-            Stream<Peer> allPeers = Stream.concat(
-                this.peers.stream(),
-                Stream.of(new Peer(this.id, getSelf()))
-            );
-            allPeers.forEach(peer -> {
-                // debug
-                this.coordinator.tell(new Debug.IncreaseOngoingMsg(peer.ref), getSelf());
-                // Join.AnnouncePresenceMsg creation and send
-                sendMessageDelay(peer.ref, new Join.AnnouncePresenceMsg(this.id));
-            });
+        if (this.joinKeyCount==0){
+            Stream.concat(
+                this.peers.stream().map(p->p.ref),
+                Stream.of(getSelf())
+            ).forEach(ref -> {
+                    // Join.AnnouncePresenceMsg creation and send
+                    sendMessageDelay(ref, new Join.AnnouncePresenceMsg(this.id));
+                });
         }
     }
 
     private void receiveGetFail(Get.FailMsg msg){
-        coordinator.tell(new Debug.DecreaseOngoingMsg(
+        coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
 
-        ), getSelf());
+        System.out.println("JOIN_FAIL"+this.id); // DEBUG
     }
 
     /**
@@ -587,9 +579,8 @@ public class Node extends AbstractActor {
 
         if (msg.id==this.id){
             System.out.println("JOINING "+this.id);
+            coordinator.tell(new Debug.SuccessMsg(Ops.JOIN, this.id, getSelf()), getSelf());
         }
-
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
     }
 
     // LEAVE
@@ -601,50 +592,42 @@ public class Node extends AbstractActor {
      */
     private void receiveLeave(Leave.InitiateMsg msg) {
         if (this.crashed) return;
-        AnnounceLeavingMsg announcementMsg = new AnnounceLeavingMsg();
-        for (Peer peer: this.peers) {
-            sendMessageDelay(peer.ref, announcementMsg);
-        }
 
-        // debug
+        int myIndex = 0;
+        while (this.peers.get(myIndex).id!=this.id) myIndex++;
+        this.peers.remove(myIndex);
 
-        System.out.println("LEAVE "+this.id);
-    }
-
-    /**
-     * Leave.AnnounceLeavingMsg handler; it removes the leaving node from the network and sends the leaving node
-     * data items to the nodes that now are responsible for it.
-     *
-     * @param msg Leave.AnnounceLeavingMsg message
-     */
-    private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
-        if (this.crashed) { return; }
-        // Remove the node from the topology
-        this.peers = this.peers.stream().filter(p -> p.ref!=getSender()).collect(Collectors.toList());
-        if (getSelf() != getSender()) { return;}
-
-        HashMap<Peer, LinkedList<Pair<Integer, Entry>>> buckets = new HashMap<>();
-
-        // Decide which elements to send to each peer
-        for (HashMap.Entry<Integer, Entry> entry: this.storage.entrySet()) {
-            List<Peer> newResponsibles = this.getResponsibles(entry.getKey());
-            for (Peer newResponsible: newResponsibles) {
-                // Create the new buckets when adding the first element to it
-                if (!buckets.containsKey(newResponsible)) {
-                    buckets.put(newResponsible, new LinkedList<>());
-                }
-
-                buckets.get(newResponsible).add(new Pair<>(entry.getKey(), entry.getValue()));
+        // Early exit
+        if (this.storage.isEmpty()) {
+            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg();
+            for (Peer p: peers) {
+                sendMessageDelay(p.ref, leavingAnnouncement);
             }
+            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
+
+            // debug
+            System.out.println("LEAVE "+this.id);
+            return;
         }
 
-        // Send the elements
-        for (HashMap.Entry<Peer, LinkedList<Pair<Integer, Entry>>> bucket: buckets.entrySet()) {
-            coordinator.tell(new Debug.IncreaseOngoingMsg(bucket.getKey().ref), ActorRef.noSender());
-            sendMessageDelay(bucket.getKey().ref, new Leave.TransferItemsMsg(bucket.getValue()));
+        // Group data items with same future owner
+        Map<Peer, List<Pair<Integer,Entry>>> buckets = new HashMap<>();
+        for (HashMap.Entry<Integer,Entry> e: this.storage.entrySet()) {
+            int key = e.getKey();
+            Entry entry = e.getValue();
+            Peer newResponsible = getResponsibles(key).getLast();
+
+            if (!buckets.containsKey(newResponsible)) {
+                buckets.put(newResponsible, new LinkedList<>());
+            }
+            buckets.get(newResponsible).add(new Pair<Integer,Node.Entry>(key, entry));
         }
-        if (buckets.isEmpty()) {
-            coordinator.tell(new Debug.DecreaseOngoingMsg(), ActorRef.noSender());
+
+        this.is_leaving = true;
+        this.leavingCount = buckets.size();
+        setTimeout(new Leave.TimeoutMsg());
+        for (HashMap.Entry<Peer, List<Pair<Integer,Entry>>> e: buckets.entrySet()) {
+            sendMessageDelay(e.getKey().ref, new Leave.TransferItemsMsg(e.getValue()));
         }
     }
 
@@ -657,14 +640,44 @@ public class Node extends AbstractActor {
     private void receiveTransferItems(Leave.TransferItemsMsg msg) {
         if (this.crashed) return;
         for (Pair<Integer, Entry> dataItem: msg.items) {
-            if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
-                this.storage.put(dataItem.first(), dataItem.second());
+            this.storage.put(dataItem.first(), dataItem.second());
 
-                // debug
-                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version);
-            }
+            // debug
+            System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version);
         }
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        sendMessageDelay(getSender(), new Leave.AckMsg());
+    }
+
+    private void receiveAck(Leave.AckMsg msg) {
+        this.leavingCount--;
+        if (this.is_leaving && this.leavingCount==0) {
+            this.is_leaving = false;
+            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg();
+            for (Peer p: peers) {
+                sendMessageDelay(p.ref, leavingAnnouncement);
+            }
+            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
+
+            // debug
+            System.out.println("LEAVE "+this.id);
+        }
+    }
+
+    private void receiveLeavingTimeout(Leave.TimeoutMsg msg) {
+        if (!this.is_leaving) return;
+        this.is_leaving = false;
+        this.coordinator.tell(new Debug.FailMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
+        
+        int myIndex = 0;
+        while (myIndex<peers.size() && this.id > peers.get(myIndex).id) myIndex++;
+        this.peers.add(myIndex, new Peer(this.id, getSelf()));
+
+        // debug
+        System.out.println("LEAVE_FAIL "+this.id);
+    }
+
+    private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
+        this.peers.removeIf(p->p.ref.equals(getSender()));
     }
 
     /// CRASH
@@ -679,7 +692,7 @@ public class Node extends AbstractActor {
         this.crashed = true;
 
         // debug
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
+        coordinator.tell(new Debug.SuccessMsg(Ops.CRASH, this.id, getSelf()),getSelf());
     }
 
     /// RECOVERY
@@ -701,7 +714,10 @@ public class Node extends AbstractActor {
      * @param msg Crash.TopologyRequestMsg message
      */
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
-        if (this.crashed) return;
+        if (this.crashed) {
+            System.out.println("!!! IGNORING RECOVERY "+this.id);
+            return;
+        }
         // Crash.TopologyResponseMsg creation and send
         sendMessageDelay(getSender(), new Crash.TopologyResponseMsg(this.peers));
     }
@@ -734,10 +750,12 @@ public class Node extends AbstractActor {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
             // Crash.RequestDataMsg send
-            coordinator.tell(new Debug.IncreaseOngoingMsg(this.peers.get(j).ref), ActorRef.noSender());
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
         }
+
+        coordinator.tell(new Debug.SuccessMsg(Ops.RECOVER, this.id, getSelf()), getSelf());
     }
+
     /**
      * Crash.RequestDataMsg handler; it sends the data the recovered node is responsible for.
      *
@@ -768,7 +786,6 @@ public class Node extends AbstractActor {
                 this.storage.put(dataItem.first(), dataItem.second());
             }
         }
-        coordinator.tell(new Debug.DecreaseOngoingMsg(),getSelf());
     }
 
     @Override
@@ -779,6 +796,7 @@ public class Node extends AbstractActor {
         .match(Set.VersionResponseMsg.class, this::receiveVersionResponse)
         .match(Set.UpdateEntryMsg.class, this::receiveUpdateMessage)
         .match(Set.TimeoutMsg.class,this::receiveSetTimeout)
+        .match(Set.UnlockMsg.class,this::receiveSetUnlock)
         .match(Debug.AddNodeMsg.class, this::receiveDebugAddNode)
         .match(Get.InitiateMsg.class, this::receiveGet)
         .match(Get.EntryRequestMsg.class, this::receiveEntryRequest)
@@ -796,12 +814,14 @@ public class Node extends AbstractActor {
         .match(Leave.InitiateMsg.class, this::receiveLeave)
         .match(Leave.AnnounceLeavingMsg.class, this::receiveAnnounceLeave)
         .match(Leave.TransferItemsMsg.class, this::receiveTransferItems)
+        .match(Leave.AckMsg.class, this::receiveAck)
+        .match(Leave.TimeoutMsg.class, this::receiveLeavingTimeout)
         .match(Debug.AnnounceCoordinator.class, this::receiveAnnounceCoordinator)
         .match(Crash.InitiateMsg.class, this::receiveCrash)
-        .match(Crash.RequestDataMsg.class, this::receiveDataRequest)
         .match(Crash.RecoveryMsg.class, this::receiveRecovery)
         .match(Crash.TopologyRequestMsg.class, this::receiveTopologyRequest)
         .match(Crash.TopologyResponseMsg.class, this::receiveTopologyResponse)
+        .match(Crash.RequestDataMsg.class, this::receiveDataRequest)
         .match(Crash.DataResponseMsg.class, this::receiveDataResponse)
         .build();
     }

@@ -117,4 +117,11 @@ public class Set {
             this.transaction_id = tid;
         }
     }
+
+    public static class UnlockMsg implements Serializable {
+        public final int key;
+        public UnlockMsg(int key) {
+            this.key = key;
+        }
+    }
 }

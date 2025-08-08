@@ -6,12 +6,16 @@ import java.io.Serializable;
 import java.util.LinkedList;
 
 import org.example.Node.Peer;
-import org.example.shared.Operation;
 
 /**
  * The class contains all the messages sent for debugging purposes.
  */
 public class Debug {
+    public static enum Ops {
+        GET, SET,
+        JOIN, LEAVE,
+        CRASH, RECOVER
+    }
 
     /**
      * This class represents the message to add a node in the system.
@@ -60,31 +64,6 @@ public class Debug {
     public static class StartRoundMsg implements Serializable{ }
 
     /**
-     * This class represents the message to increase the ongoing_action parameter of the coordinator.
-     */
-    public static class IncreaseOngoingMsg implements Serializable{
-        /** ActorRef responsible for the increase */
-        public final ActorRef responsible;
-
-        public IncreaseOngoingMsg(ActorRef responsible) {
-            this.responsible = responsible;
-        }
-    }
-
-    /**
-     * This class represents the message to decrease the ongoing_action parameter of the coordinator.
-     */
-    public static class DecreaseOngoingMsg implements Serializable{
-        public final Operation operation;
-        public DecreaseOngoingMsg(Operation operation) {
-            this.operation = operation;
-        }
-        public DecreaseOngoingMsg() {
-            this.operation = null;
-        }
-    }
-
-    /**
      * This class represents the message to announce the coordinator to the nodes.
      */
     public static class AnnounceCoordinator implements Serializable{
@@ -96,4 +75,24 @@ public class Debug {
         }
     }
 
+    public static class FailMsg {
+        public final Ops op;
+        public final ActorRef node;
+        public final int id;
+        public FailMsg(Ops op, int id, ActorRef node) {
+            this.op = op;
+            this.node = node;
+            this.id = id;
+        }
+    }
+    public static class SuccessMsg {
+        public final Ops op;
+        public final ActorRef node;
+        public final int id;
+        public SuccessMsg(Ops op, int id, ActorRef node) {
+            this.op = op;
+            this.node = node;
+            this.id = id;
+        }
+    }
 }

@@ -3,6 +3,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import org.example.msg.*;
+import org.example.msg.Debug.Ops;
 
 /**
  * The class represents a client that makes requests to the system.
@@ -24,7 +25,8 @@ public class Client extends AbstractActor {
      * @param msg Set.SuccessMsg message
      */
     private void receiveSetSuccess(Set.SuccessMsg msg) {
-        System.out.println(this.name + " : Success");
+        System.out.println(this.name + " : Success SET");
+        coordinator.tell(new Debug.SuccessMsg(Ops.SET, -1, getSender()), getSelf());
     }
 
     /**
@@ -33,9 +35,8 @@ public class Client extends AbstractActor {
      * @param msg Set.FailMsg message
      */
     private void receiveSetFail(Set.FailMsg msg) {
-        System.out.println(this.name + " : Fail");
-        coordinator.tell(new Debug.IncreaseOngoingMsg(getSelf()), getSelf());
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        System.out.println(this.name + " : Fail SET");
+        coordinator.tell(new Debug.FailMsg(Ops.SET, -1, getSender()), getSelf());
     }
 
     /**
@@ -45,7 +46,7 @@ public class Client extends AbstractActor {
      */
     private void receiveGetSuccess(Get.SuccessMsg msg) {
         System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        coordinator.tell(new Debug.SuccessMsg(Ops.GET, -1, getSender()), getSelf());
     }
 
     /**
@@ -55,7 +56,7 @@ public class Client extends AbstractActor {
      */
     private void receiveGetFail(Get.FailMsg msg) {
         System.out.println(this.name + ": Fail ["+msg.key+"]");
-        coordinator.tell(new Debug.DecreaseOngoingMsg(), getSelf());
+        coordinator.tell(new Debug.FailMsg(Ops.GET, -1, getSender()), getSelf());
     }
 
     static public Props props(String name) {
