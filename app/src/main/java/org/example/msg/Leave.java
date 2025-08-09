@@ -1,12 +1,12 @@
 package org.example.msg;
 
-import org.example.Node.Entry;
-
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
 import akka.japi.Pair;
+
+import org.example.shared.*;
 
 /**
  * The class represents the messages exchanged during a leave operation.

@@ -1,7 +1,7 @@
 package org.example.msg;
 
 import java.io.Serializable;
-import org.example.Node.Entry;
+import org.example.shared.*;
 
 /**
  * This class represents the messages exchanged during a get request (read operation).

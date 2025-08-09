@@ -2,6 +2,7 @@ package org.example.msg;
 
 import org.example.Node;
 import java.io.Serializable;
+import org.example.shared.*;
 
 /**
  * This class represents the messages exchanged during a set operation.
@@ -86,7 +87,7 @@ public class Set {
     public static class UpdateEntryMsg implements Serializable {
         /** Entry containing the version and the value of the (updated) data item.
          */
-        public final Node.Entry entry;
+        public final Entry entry;
         /** Key of the data item.
          */
         public final int key;
@@ -96,7 +97,7 @@ public class Set {
          * @param key key of the data item
          * @param entry entry for the data item
          */
-        public UpdateEntryMsg(int key, Node.Entry entry) {
+        public UpdateEntryMsg(int key, Entry entry) {
             this.entry = entry;
             this.key = key;
         }

@@ -3,13 +3,12 @@ package org.example;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.japi.Pair;
-import scala.collection.immutable.HashSet;
 
-import org.example.Node.Entry;
 import org.example.Node.Peer;
 import org.example.msg.Debug;
 import org.example.msg.Get;
 import org.example.msg.Set;
+import org.example.shared.Entry;
 import org.example.shared.Graph;
 import org.example.shared.NamedClient;
 
@@ -543,8 +542,7 @@ public class AppDebug {
     public String check_round_sim(){
         Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();
         Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();
-
-        HashSet<Integer> crashed_nodes_sim = new HashSet<>();
+        Map<Integer, Entry> ideal_storage = new HashMap<>(); // Single storage with all the latest data items
 
         /* TODO
         * Put all nodes storages. We'll only keep track of the contents and not the
@@ -553,48 +551,41 @@ public class AppDebug {
         */
 
         List<Integer> nodes_in_sim  = new LinkedList<>();
-        List<Integer> nodes_out_sim = new LinkedList<>();
+        java.util.Set<Integer> nodes_crashed = new HashSet<Integer>();
 
         for (Peer p: nodes_in) {
-            storages.put(p.id, new HashMap<>());
             simulated.put(p.id, new HashMap<>());
             nodes_in_sim.add(p.id);
         }
 
-        for (Peer p: nodes_out) {
-            nodes_out_sim.add(p.id);
-        }
-
-
         try {
+            int round = 0;
+
             File set = new File("set_dynamic.txt");
             Scanner scan = new Scanner(set);
 
             while (scan.hasNextLine()) {
                 switch (scan.next()) {
-                    case "\\\\\\\\\\":
-                    List<Integer> all_node_ids_in = Stream.concat(
-                        storages.keySet().stream(),
-                        simulated.keySet().stream()
-                    ).distinct().collect(Collectors.toList());
-                    for (int node_id: all_node_ids_in) {
-                        if (!(storages.containsKey(node_id) && simulated.containsKey(node_id))) {
-                            return "Node " + node_id + " is not in both maps";
-                        }
-                        Map<Integer, Entry> node_storage = storages.get(node_id);
-                        Map<Integer, Entry> node_storage_sim = simulated.get(node_id);
+                    case "/////":
+                    scan.next();
+                    scan.next();
+                    round = scan.nextInt();
+                    break;
 
-                        List<Integer> all_keys = Stream.concat(
-                            node_storage.keySet().stream(),
-                            node_storage_sim.keySet().stream()
-                        ).distinct().collect(Collectors.toList());
-                        for (int key: all_keys) {
-                            if (!(node_storage.containsKey(key) && node_storage_sim.containsKey(key))) {
-                                return "Key " + key + " is not in both maps";
-                            }
-                            if (!node_storage.get(key).equals(node_storage_sim.get(key))) {
-                                return "Key " + key + " items are different";
-                            }
+                    case "\\\\\\\\\\":
+                    for (int node_id: nodes_in_sim) {
+                        Map<Integer, Entry> sim_storage = simulated.get(node_id);
+                        Map<Integer, Entry> actual_storage = storages.get(node_id);
+                        if (!check_storage_equality(sim_storage, actual_storage)) {
+                            StringBuilder error = new StringBuilder();
+                            error.append("Divergence in storages at round ")
+                                .append(round).append("\n")
+                                .append("Node: ").append(node_id).append("\n")
+                                .append("Simulated Storage:\n")
+                                .append(storage_to_string(sim_storage))
+                                .append("Actual Storage:\n")
+                                .append(storage_to_string(actual_storage));
+                            return error.toString();
                         }
                     }
                     break;
@@ -604,8 +595,8 @@ public class AppDebug {
                     int add_key = scan.nextInt();
                     String add_val = scan.next();
                     int add_version = scan.nextInt();
-
-                    storages.get(add_id).put(add_key, new Entry(add_val, add_version));
+                    storages.computeIfAbsent(add_id, k->new HashMap<>())
+                        .put(add_key, new Entry(add_val, add_version));
                     break;
 
                     case "DELETE":
@@ -615,21 +606,80 @@ public class AppDebug {
                     break;
 
                     case "SET":
+                    int set_key = scan.nextInt();
+                    String set_value = scan.next();
+                    int set_version = scan.nextInt();
+
+                    // Check there wasn't a newer version in the system already
+                    Entry last_version = ideal_storage.get(set_key);
+                    if (last_version!=null && set_version<=last_version.version) {
+                        return "Setting version " + set_version +" for key " +set_key+" while version "+last_version.version+" is already present";
+                    }
+                    ideal_storage.put(set_key, new Entry(set_value, set_version));
+
+                    // Insert the new data
+                    getResponsibles(nodes_in_sim, set_key).stream()                         // Responsible ids
+                        .filter(id->!nodes_crashed.contains(id))                            // not crashed
+                        .map(simulated::get)                                                // get the storage
+                        .forEach(responsible->{
+                            responsible.put(set_key, new Entry(set_value, set_version));    // put the new value
+                        });
                     break;
 
                     case "GET":
+                    int get_key = scan.nextInt();
+                    String get_value = scan.next();
+                    int get_version = scan.nextInt();
+
+                    // Check the data we're getting is the newest
+                    Entry latest_entry = ideal_storage.get(get_key);
+                    if (!latest_entry.value.equals(get_value) || latest_entry.version != get_version) {
+                        return "Get error on key" + get_key + ".\n Expected <"+ latest_entry.value+", "+latest_entry.version+"> but got <"+get_value+", "+get_version+"> instead.";
+                    }
                     break;
 
                     case "JOIN":
+                    int join_id = scan.nextInt();
+
+                    // Add the node in the ring
+                    int index = 0;
+                    while (join_id>nodes_in_sim.get(index)) index++;
+                    nodes_in_sim.add(index, join_id);
+
+                    // Add the data items to the node
+                    Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, id->new HashMap<>());
+                    for (HashMap.Entry<Integer, Entry> e: ideal_storage.entrySet()) {
+                        if (isResponsible(nodes_in_sim, join_id, e.getKey())) {
+                            joining_storage.put(e.getKey(), e.getValue());
+                        }
+                    }
+
+                    // Remove the data items from the nodes
+                    remove_excess(simulated, ideal_storage, nodes_in_sim, nodes_crashed);
                     break;
 
                     case "LEAVE":
+                    int leave_id = scan.nextInt();
+
+                    nodes_in_sim.removeIf(v->v==leave_id);
+                    for (HashMap.Entry<Integer, Entry> e: simulated.get(leave_id).entrySet()) {
+                        int new_responsible = getResponsibles(nodes_in_sim, e.getKey()).getLast();
+                        Map<Integer, Entry> new_responsible_storage = simulated.get(new_responsible);
+                        Entry old_value = new_responsible_storage.get(e.getKey());
+                        if (old_value==null || old_value.version < e.getValue().version) {
+                            new_responsible_storage.put(e.getKey(), e.getValue());
+                        }
+                    }
                     break;
 
                     case "CRASH":
+                    int crash_id = scan.nextInt();
+                    nodes_crashed.add(crash_id);
                     break;
 
                     case "RECOVERY":
+                    int recovery_id = scan.nextInt();
+                    nodes_crashed.remove(recovery_id);
                     break;
 
                     default:
@@ -639,17 +689,54 @@ public class AppDebug {
             }
             scan.close();
         }catch(Exception e) {
+            System.out.println(e.getMessage());
         }
 
         return "ALL IS GOOD IN THE WORLD";
     }
 
     private List<Integer> getResponsibles(List<Integer> nodes_in, int key) {
-        // TODO
+        List<Integer> ret = new LinkedList<>();
+        int i = 0;
+        while (i<nodes_in.size() && nodes_in.get(i) < key) i++;
+        if (i==nodes_in.size()) i = 0;
+        for (int j=0; j<N; j++) {
+            ret.add((i+j)%nodes_in.size());
+        }
+        return ret;
     }
 
     private boolean isResponsible(List<Integer> nodes_in, int id, int key) {
-        // TODO
+        return (getResponsibles(nodes_in, key).contains(id));
+    }
+
+    private boolean check_storage_equality(Map<Integer,Entry> s1, Map<Integer,Entry> s2) {
+        if (s1 == null && s2 == null) return true;
+        if (s1 == null || s2 == null) return false;
+
+        return Stream.concat(
+            s1.keySet().stream(),
+            s2.keySet().stream()
+        ).distinct()
+        .allMatch(key->Objects.equals(s1.get(key), s2.get(key)));
+    }
+
+    private String storage_to_string(Map<Integer, Entry> s) {
+        return s.entrySet().stream()
+            .sorted(Comparator.comparingInt(e->e.getKey()))
+            .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)
+            .collect(Collectors.joining("\n"));
+    }
+
+    private void remove_excess(
+        Map<Integer, Map<Integer, Entry>> storages, 
+        Map<Integer, Entry> ideal,
+        List<Integer> nodes_in,
+        java.util.Set<Integer> nodes_crashed) {
+        nodes_in.stream()
+            .filter(id->!nodes_crashed.contains(id))
+            .map(storages::get)
+            .forEach(Map::clear);
     }
 
     public String generateRandomString(int length) {

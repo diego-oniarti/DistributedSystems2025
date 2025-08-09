@@ -17,6 +17,8 @@ import org.example.msg.Set;
 import org.example.msg.Debug.Ops;
 import org.example.msg.Leave.AnnounceLeavingMsg;
 
+import org.example.shared.Entry;
+
 import scala.concurrent.duration.Duration;
 
 import org.example.msg.*;
@@ -150,27 +152,6 @@ public class Node extends AbstractActor {
     }
 
     /// CLASSES
-
-    /**
-     * The class represents an entry of the local storage.
-     */
-    public static class Entry {
-        /** String name of the data item. */
-        public String value;
-        public int version;
-        public Entry (String value, int version) {
-            this.value = value;
-            this.version = version;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (other==null) return false;
-            if (other.getClass() != this.getClass()) return false;
-            return this.value.equals(((Entry)other).value) 
-            && this.version == ((Entry)other).version;
-        }
-    }
 
     /**
      * The class represents a peer in the network.
@@ -642,7 +623,7 @@ public class Node extends AbstractActor {
             if (!buckets.containsKey(newResponsible)) {
                 buckets.put(newResponsible, new LinkedList<>());
             }
-            buckets.get(newResponsible).add(new Pair<Integer,Node.Entry>(key, entry));
+            buckets.get(newResponsible).add(new Pair<Integer, Entry>(key, entry));
         }
 
         this.is_leaving = true;

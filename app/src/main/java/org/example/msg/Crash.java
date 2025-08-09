@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.example.Node;
-import org.example.Node.Entry;
+import org.example.shared.*;
 
 import akka.actor.ActorRef;
 import akka.japi.Pair;

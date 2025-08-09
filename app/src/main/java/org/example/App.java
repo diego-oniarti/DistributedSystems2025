@@ -39,9 +39,12 @@ public class App {
         // System.out.println(e_dynamic);
 
         // test about set and get operations (seq consistency check) in a dynamic network
-        d.dynamicTest("seq_cons.txt");
-        String e_cons = d.check_consistency_file();
-        System.out.println(e_cons);
+        // d.dynamicTest("seq_cons.txt");
+        // String e_cons = d.check_consistency_file();
+        // System.out.println(e_cons);
 
+        d.dynamicTest("seq_cons.txt");
+        String e_sim = d.check_round_sim();
+        System.out.println(e_sim);
     }
 }
