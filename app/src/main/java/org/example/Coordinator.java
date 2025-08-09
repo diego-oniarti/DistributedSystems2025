@@ -120,7 +120,10 @@ public class Coordinator extends AbstractActor {
             ongoing_actions = clients.size();
             for (NamedClient client : clients){
                 Peer node;
-                do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
+                do {
+                    node = nodes_in.getRandom();
+                    System.err.println("Retry");
+                }while(crashed_nodes.contains(node));
 
                 int key = keys[rng.nextInt(K)];
                 if (rng.nextBoolean()) {
@@ -136,7 +139,10 @@ public class Coordinator extends AbstractActor {
             }
         }else{ // JOIN, LEAVE, CRASH, RECOVERY
             Peer node;
-            do { node = nodes_in.getRandom(); }while(crashed_nodes.contains(node));
+            do {
+                node = nodes_in.getRandom();
+                System.err.println("Retry");
+            }while(crashed_nodes.contains(node));
 
             ongoing_actions = 1;
             switch (rng.nextInt(4)){
