@@ -228,8 +228,8 @@ public class Coordinator extends AbstractActor {
         }
 
         if (ongoing_actions<=0) {
-            System.out.println("Sleep 2*RTT");
             try { Thread.sleep(2*App.MSG_MAX_DELAY); }catch(Exception e) { System.out.println(e.getMessage()); }
+            System.out.println("\\\\\\\\\\ ROUND END");
             getSelf().tell(new Debug.StartRoundMsg(), getSelf());
         }
     }
@@ -242,8 +242,8 @@ public class Coordinator extends AbstractActor {
         }
         System.out.println("<<<< FAIL " + acting_node.id + " " + msg.op);
         if (ongoing_actions<=0) {
-            System.out.println("Sleep 2*RTT");
             try { Thread.sleep(2*App.MSG_MAX_DELAY); }catch(Exception e) { System.out.println(e.getMessage()); }
+            System.out.println("\\\\\\\\\\ ROUND END");
             getSelf().tell(new Debug.StartRoundMsg(), getSelf());
         }
     }

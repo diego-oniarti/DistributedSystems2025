@@ -19,7 +19,12 @@ public class Leave {
     /**
      * This class represents the message to
      */
-    public static class AnnounceLeavingMsg implements Serializable {};
+    public static class AnnounceLeavingMsg implements Serializable {
+        public final boolean insert_staged_keys;
+        public AnnounceLeavingMsg(boolean insert_staged_keys) {
+            this.insert_staged_keys = insert_staged_keys;
+        }
+    };
     /**
      * This class represents the message to
      */

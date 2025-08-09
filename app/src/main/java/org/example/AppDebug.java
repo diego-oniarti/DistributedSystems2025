@@ -3,7 +3,9 @@ package org.example;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.japi.Pair;
+import scala.collection.immutable.HashSet;
 
+import org.example.Node.Entry;
 import org.example.Node.Peer;
 import org.example.msg.Debug;
 import org.example.msg.Get;
@@ -16,6 +18,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.example.App.*;
 
@@ -273,7 +277,7 @@ public class AppDebug {
      */
     public String check_consistency_file() {
         // read operations of clients
-        Map<String, List<Pair<Integer, String>>> history = new HashMap<>();  // Client_name -> [(item_key, item_value)]
+        Map<String, List<Pair<Integer, Pair<String,Integer>>>> history = new HashMap<>();  // Client_name -> [(item_key, <item_value, item_version>)]
         for (NamedClient client: clients) {
             history.put(client.ref.toString(), new LinkedList<>());
         }
@@ -284,23 +288,22 @@ public class AppDebug {
             File cons = new File("seq_cons.txt");
             Scanner scan = new Scanner(cons);
             while (scan.hasNextLine()) {        // WRITE node_id item_key version
-                if (scan.hasNext("WRITE")) {
-                    scan.nextLine();
-                } else if (scan.hasNext("READ")) { // READ client_ref node_id item_key version
+                if (scan.hasNext("READ")) { // READ client_ref node_id item_key version
                     scan.next();
                     String client = scan.next();
                     int node_id = scan.nextInt();
                     Integer item_key = scan.nextInt();
                     String item_value = scan.next();
+                    int item_version = scan.nextInt();
 
-                    if (history.get(client) != null) {
-                        history.get(client).add(new Pair<Integer,String>(item_key, item_value));
+                    if (history.get(client) != null) { // Ignore gets made by nodes (for join operation)
+                        history.get(client).add(new Pair<>(item_key, new Pair<>(item_value,item_version)));
                     }
 
                     // create node
-                    graph.addNode(item_key.toString()+"."+item_value);
+                    graph.addNode(item_key.toString()+"."+item_value+"."+item_version);
                 } else {
-                    String msg = scan.nextLine();
+                    scan.nextLine();
                 }
 
             }
@@ -310,22 +313,23 @@ public class AppDebug {
         }
 
         for (NamedClient client: clients) {
-            Map<Integer, String> last_seen = new HashMap<>();
+            Map<Integer, Pair<String,Integer>> last_seen = new HashMap<>();
             String cid = client.ref.toString();
 
-            List<Pair<Integer, String>> clientHistory = history.get(client.ref.toString());
-            for (Pair<Integer, String> read: clientHistory) {
+            List<Pair<Integer, Pair<String,Integer>>> clientHistory = history.get(client.ref.toString());
+            for (Pair<Integer, Pair<String,Integer>> read: clientHistory) {
                 int key = read.first();
-                String val = read.second();
+                String val = read.second().first();
+                int version = read.second().second();
 
-                String last = last_seen.get(key);
-                last_seen.put(key, val);
-                if (last==null) {
+                Pair<String,Integer> last_entry = last_seen.get(key);
+                last_seen.put(key, new Pair<>(val,version));
+                if (last_entry==null) {
                     continue;
                 }
-                if (!last.equals(val)) {
+                if (!(last_entry.first().equals(val) && last_entry.second().equals(version))) { // Avoid self-loops
                     // create edge
-                    graph.addEdge(key+"."+last, key+"."+val);
+                    graph.addEdge(key+"."+last_entry.first()+"."+last_entry.second(), key+"."+val+"."+version);
                 }
             }
         }
@@ -342,6 +346,15 @@ public class AppDebug {
             System.out.print(e+" ");
         }
         System.out.println();
+
+        for (HashMap.Entry<String, List<Pair<Integer, Pair<String,Integer>>>> e: history.entrySet()) {
+            String client = e.getKey();
+            System.out.print(client+": ");
+            for (Pair<Integer, Pair<String,Integer>> read: e.getValue()) {
+                System.out.print(read.first()+"."+read.second().first()+"."+read.second().second()+" - ");
+            }
+            System.out.println();
+        }
 
         return "Sequentially consistent";
     }
@@ -379,8 +392,7 @@ public class AppDebug {
      *
      * @return a String explaining errors or success
      */
-    public String check_dynamic_set_file(){
-
+    public String check_dynamic_file(){
         // items inserted in the system
         Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
         // items inserted in nodes local storage
@@ -433,10 +445,6 @@ public class AppDebug {
                     case "DELETE":              //  DELETE node_id item_key
                     node_id = scan.nextInt();
                     item_key = scan.nextInt();
-                    // we register the node that was removed because a new node joins the network
-                    if (!storage.containsKey(node_id)){
-                        storage.put(node_id,new HashMap<>());
-                    }
                     storage.get(node_id).remove(item_key);
                     break;
                     case "JOINING":             // JOINING node_id
@@ -496,7 +504,7 @@ public class AppDebug {
         }
 
         // check number of nodes
-        if (nodes_in.size()!=start+(n_joins-n_leave)){
+        if (nodes_in.size()!=start+n_joins-n_leave){
             return "Final number of nodes in uncorrected";
         }
 
@@ -530,6 +538,118 @@ public class AppDebug {
         }
 
         return "Dynamic set test is correct";
+    }
+
+    public String check_round_sim(){
+        Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();
+        Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();
+
+        HashSet<Integer> crashed_nodes_sim = new HashSet<>();
+
+        /* TODO
+        * Put all nodes storages. We'll only keep track of the contents and not the
+        * configuration.
+        * We'll still keep track of the configuration of the simulated system
+        */
+
+        List<Integer> nodes_in_sim  = new LinkedList<>();
+        List<Integer> nodes_out_sim = new LinkedList<>();
+
+        for (Peer p: nodes_in) {
+            storages.put(p.id, new HashMap<>());
+            simulated.put(p.id, new HashMap<>());
+            nodes_in_sim.add(p.id);
+        }
+
+        for (Peer p: nodes_out) {
+            nodes_out_sim.add(p.id);
+        }
+
+
+        try {
+            File set = new File("set_dynamic.txt");
+            Scanner scan = new Scanner(set);
+
+            while (scan.hasNextLine()) {
+                switch (scan.next()) {
+                    case "\\\\\\\\\\":
+                    List<Integer> all_node_ids_in = Stream.concat(
+                        storages.keySet().stream(),
+                        simulated.keySet().stream()
+                    ).distinct().collect(Collectors.toList());
+                    for (int node_id: all_node_ids_in) {
+                        if (!(storages.containsKey(node_id) && simulated.containsKey(node_id))) {
+                            return "Node " + node_id + " is not in both maps";
+                        }
+                        Map<Integer, Entry> node_storage = storages.get(node_id);
+                        Map<Integer, Entry> node_storage_sim = simulated.get(node_id);
+
+                        List<Integer> all_keys = Stream.concat(
+                            node_storage.keySet().stream(),
+                            node_storage_sim.keySet().stream()
+                        ).distinct().collect(Collectors.toList());
+                        for (int key: all_keys) {
+                            if (!(node_storage.containsKey(key) && node_storage_sim.containsKey(key))) {
+                                return "Key " + key + " is not in both maps";
+                            }
+                            if (!node_storage.get(key).equals(node_storage_sim.get(key))) {
+                                return "Key " + key + " items are different";
+                            }
+                        }
+                    }
+                    break;
+
+                    case "ADD":
+                    int add_id = scan.nextInt();
+                    int add_key = scan.nextInt();
+                    String add_val = scan.next();
+                    int add_version = scan.nextInt();
+
+                    storages.get(add_id).put(add_key, new Entry(add_val, add_version));
+                    break;
+
+                    case "DELETE":
+                    int del_id = scan.nextInt();
+                    int del_key = scan.nextInt();
+                    storages.get(del_id).remove(del_key);
+                    break;
+
+                    case "SET":
+                    break;
+
+                    case "GET":
+                    break;
+
+                    case "JOIN":
+                    break;
+
+                    case "LEAVE":
+                    break;
+
+                    case "CRASH":
+                    break;
+
+                    case "RECOVERY":
+                    break;
+
+                    default:
+                    scan.nextLine();
+                    break;
+                };
+            }
+            scan.close();
+        }catch(Exception e) {
+        }
+
+        return "ALL IS GOOD IN THE WORLD";
+    }
+
+    private List<Integer> getResponsibles(List<Integer> nodes_in, int key) {
+        // TODO
+    }
+
+    private boolean isResponsible(List<Integer> nodes_in, int id, int key) {
+        // TODO
     }
 
     public String generateRandomString(int length) {

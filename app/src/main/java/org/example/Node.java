@@ -44,6 +44,8 @@ public class Node extends AbstractActor {
     private boolean crashed;
     private Random rnd;
 
+    private HashMap<Integer, Entry> stagedStorage;
+
     private int joinKeyCount;
     private boolean is_joining;
     private boolean join_failed;
@@ -152,13 +154,21 @@ public class Node extends AbstractActor {
     /**
      * The class represents an entry of the local storage.
      */
-    public class Entry {
+    public static class Entry {
         /** String name of the data item. */
         public String value;
         public int version;
         public Entry (String value, int version) {
             this.value = value;
             this.version = version;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other==null) return false;
+            if (other.getClass() != this.getClass()) return false;
+            return this.value.equals(((Entry)other).value) 
+            && this.version == ((Entry)other).version;
         }
     }
 
@@ -256,6 +266,7 @@ public class Node extends AbstractActor {
         this.is_joining = false;
         this.ongoing_set_keys = new HashSet<>();
         this.join_failed = false;
+        this.stagedStorage = new HashMap<>();
     }
 
     static public Props props(int id) {
@@ -349,6 +360,8 @@ public class Node extends AbstractActor {
         for (Peer responsible: responsibles) {
             sendMessageDelay(responsible.ref, updateMsg);
         }
+
+        System.out.println("SET "+transaction.key+" "+transaction.value+" "+maxVersion+" ");
     }
 
     /**
@@ -359,7 +372,7 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
-        System.out.println("WRITE "+this.id+" "+msg.key+" "+msg.entry.version);
+        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.entry.value+" "+msg.entry.version);
         this.ongoing_set_keys.remove(msg.key);
     }
 
@@ -444,10 +457,11 @@ public class Node extends AbstractActor {
 
         // Success message creation and send
         if (latestEntry!=null){
-            transaction.client.tell(new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version), getSelf());
+            sendMessageDelay(transaction.client, new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version));
+            System.out.println("GET "+transaction.key+" "+latestEntry.value+" "+latestEntry.version);
 
-            // debug
-            System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value);
+            // debug (sequential consistency)
+            System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value + " " + latestEntry.version);
         }else{
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
@@ -464,7 +478,7 @@ public class Node extends AbstractActor {
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);
         // Get.Fail message creation and send
         if (transaction!=null) {
-            transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+            sendMessageDelay(transaction.client, new Get.FailMsg(transaction.key));
         }
     }
 
@@ -502,7 +516,6 @@ public class Node extends AbstractActor {
 
     private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg){
         if (!is_joining) {return;}
-
         this.is_joining = false;
 
         if (msg.keys.isEmpty()){
@@ -536,7 +549,7 @@ public class Node extends AbstractActor {
 
         this.storage.put(msg.key, new Entry(msg.value, msg.version));
 
-        System.out.println("ADD "+this.id+" "+msg.key+" "+msg.version); // DEBUG
+        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.value+" "+msg.version); // DEBUG
 
         if (this.joinKeyCount==0){
             Stream.concat(
@@ -587,6 +600,8 @@ public class Node extends AbstractActor {
         if (msg.id==this.id){
             System.out.println("JOINING "+this.id);
             coordinator.tell(new Debug.SuccessMsg(Ops.JOIN, this.id, getSelf()), getSelf());
+
+            System.out.println("JOIN "+this.id);
         }
     }
 
@@ -606,7 +621,7 @@ public class Node extends AbstractActor {
 
         // Early exit
         if (this.storage.isEmpty()) {
-            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg();
+            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(false);
             for (Peer p: peers) {
                 sendMessageDelay(p.ref, leavingAnnouncement);
             }
@@ -646,11 +661,9 @@ public class Node extends AbstractActor {
      */
     private void receiveTransferItems(Leave.TransferItemsMsg msg) {
         if (this.crashed) return;
+        this.stagedStorage.clear();
         for (Pair<Integer, Entry> dataItem: msg.items) {
-            this.storage.put(dataItem.first(), dataItem.second());
-
-            // debug
-            System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version);
+            this.stagedStorage.put(dataItem.first(), dataItem.second());
         }
         sendMessageDelay(getSender(), new Leave.AckMsg());
     }
@@ -659,7 +672,7 @@ public class Node extends AbstractActor {
         this.leavingCount--;
         if (this.is_leaving && this.leavingCount==0) {
             this.is_leaving = false;
-            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg();
+            AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(true);
             for (Peer p: peers) {
                 sendMessageDelay(p.ref, leavingAnnouncement);
             }
@@ -684,6 +697,18 @@ public class Node extends AbstractActor {
     }
 
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
+        if (msg.insert_staged_keys) {
+            for (HashMap.Entry<Integer, Entry> stagedEntry: this.stagedStorage.entrySet()) {
+                Entry old_entry = this.storage.get(stagedEntry.getKey());
+                if (old_entry == null || old_entry.version<stagedEntry.getValue().version) {
+                    this.storage.put(stagedEntry.getKey(), stagedEntry.getValue());
+
+                    // debug
+                    System.out.println("ADD "+this.id+" "+stagedEntry.getKey()+" "+ stagedEntry.getValue().value+" "+stagedEntry.getValue().version);
+                }
+            }
+            stagedStorage.clear();
+        }
         this.peers.removeIf(p->p.ref.equals(getSender()));
     }
 
@@ -699,6 +724,7 @@ public class Node extends AbstractActor {
         this.crashed = true;
 
         // debug
+        System.out.println("CRASH "+this.id);
         coordinator.tell(new Debug.SuccessMsg(Ops.CRASH, this.id, getSelf()),getSelf());
     }
 
@@ -721,10 +747,7 @@ public class Node extends AbstractActor {
      * @param msg Crash.TopologyRequestMsg message
      */
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
-        if (this.crashed) {
-            System.out.println("!!! IGNORING RECOVERY "+this.id);
-            return;
-        }
+        if (this.crashed) return;
         // Crash.TopologyResponseMsg creation and send
         sendMessageDelay(getSender(), new Crash.TopologyResponseMsg(this.peers));
     }
@@ -765,6 +788,7 @@ public class Node extends AbstractActor {
         }
 
         coordinator.tell(new Debug.SuccessMsg(Ops.RECOVER, this.id, getSelf()), getSelf());
+        System.out.println("RECOVERY "+this.id);
     }
 
     /**
@@ -795,7 +819,7 @@ public class Node extends AbstractActor {
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
-                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().version); // DEBUG
+                System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().value+" "+dataItem.second().version); // DEBUG
             }
         }
     }
