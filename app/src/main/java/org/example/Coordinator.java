@@ -266,23 +266,6 @@ public class Coordinator extends AbstractActor {
     }
 
     /**
-     * It generates a random String.
-     *
-     * @param length length of the String
-     * @return the random String
-     */
-    private String generateRandomString(int length) {
-        String characterSet = "abcdefghijklmnopqrstuvwxyz";
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        for (int i = 0; i < length; i++) {
-            int index = random.nextInt(characterSet.length());
-            sb.append(characterSet.charAt(index));
-        }
-        return sb.toString();
-    }
-
-    /**
      * It updates the keys of the system using as bound the maximum ID of all the nodes inserted in the system.
      *
      * @param peers list of peers

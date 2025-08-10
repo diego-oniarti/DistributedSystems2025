@@ -10,6 +10,7 @@ import org.example.msg.Get;
 import org.example.msg.Set;
 import org.example.shared.Entry;
 import org.example.shared.Graph;
+import org.example.shared.NameGenerator;
 import org.example.shared.NamedClient;
 
 import java.io.File;
@@ -59,7 +60,7 @@ public class AppDebug {
     /** It creates and adds clients to the system informing the coordinator. */
     public void addClients() {
         for (int i = 0; i<N_CLIENT; i++){
-            String name = generateRandomString(4);
+            String name = NameGenerator.generateRandomString(4);
             ActorRef client = this.system.actorOf(Client.props(name));
             this.clients.add(new NamedClient(name, client));
             this.coordinator.tell(new Debug.AddClientMsg(client, name), ActorRef.noSender());
@@ -114,7 +115,7 @@ public class AppDebug {
 
         for (int i = 0; i<N_SET; i++){
             int key = rng.nextInt(bound);
-            String value = generateRandomString(3);
+            String value = NameGenerator.generateRandomString(3);
             this.nodes_in.get(rng.nextInt(nodes_in.size())).ref
                 .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())).ref);
 
@@ -246,7 +247,7 @@ public class AppDebug {
 
             if (rng.nextBoolean()) {
                 // SET
-                String value = generateRandomString(5);
+                String value = NameGenerator.generateRandomString(5);
                 node.ref.tell(new Set.InitiateMsg(key, value), client);
             }else{
                 // GET
@@ -737,16 +738,5 @@ public class AppDebug {
             .filter(id->!nodes_crashed.contains(id))
             .map(storages::get)
             .forEach(Map::clear);
-    }
-
-    public String generateRandomString(int length) {
-        String characterSet = "abcdefghijklmnopqrstuvwxyz";
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        for (int i = 0; i < length; i++) {
-            int index = random.nextInt(characterSet.length());
-            sb.append(characterSet.charAt(index));
-        }
-        return sb.toString();
     }
 }
