@@ -11,8 +11,7 @@ import org.example.msg.Debug.Ops;
 public class Client extends AbstractActor {
     /** Name of the client. */
     private final String name;
-
-    // debug
+    /** ActorRef of the coordinator. */
     private ActorRef coordinator;
 
     public Client(String name) {
@@ -25,7 +24,9 @@ public class Client extends AbstractActor {
      * @param msg Set.SuccessMsg message
      */
     private void receiveSetSuccess(Set.SuccessMsg msg) {
+        //debug
         System.out.println(this.name + " : Success SET");
+
         coordinator.tell(new Debug.SuccessMsg(Ops.SET, -1, getSender()), getSelf());
     }
 
@@ -35,7 +36,9 @@ public class Client extends AbstractActor {
      * @param msg Set.FailMsg message
      */
     private void receiveSetFail(Set.FailMsg msg) {
+        //debug
         System.out.println(this.name + " : Fail SET");
+
         coordinator.tell(new Debug.FailMsg(Ops.SET, -1, getSender()), getSelf());
     }
 
@@ -45,7 +48,9 @@ public class Client extends AbstractActor {
      * @param msg Get.SuccessMsg message
      */
     private void receiveGetSuccess(Get.SuccessMsg msg) {
+        // debug
         System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");
+
         coordinator.tell(new Debug.SuccessMsg(Ops.GET, -1, getSender()), getSelf());
     }
 
@@ -55,7 +60,9 @@ public class Client extends AbstractActor {
      * @param msg Get.FailMsg message
      */
     private void receiveGetFail(Get.FailMsg msg) {
+        // debug
         System.out.println(this.name + ": Fail ["+msg.key+"]");
+
         coordinator.tell(new Debug.FailMsg(Ops.GET, -1, getSender()), getSelf());
     }
 
@@ -63,6 +70,11 @@ public class Client extends AbstractActor {
         return Props.create(Client.class, () -> new Client(name));
     }
 
+    /**
+     * Debug.AnnounceCoordinator handler; the client stores the coordinator ActorRef.
+     *
+     * @param msg Debug.AnnounceCoordinator message
+     */
     private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
         this.coordinator = msg.coordinator;
     }

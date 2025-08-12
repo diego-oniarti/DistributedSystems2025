@@ -664,7 +664,8 @@ public class AppDebug {
 
                     nodes_in_sim.removeIf(v->v==leave_id);
                     for (HashMap.Entry<Integer, Entry> e: simulated.get(leave_id).entrySet()) {
-                        int new_responsible = getResponsibles(nodes_in_sim, e.getKey()).getLast();
+                        List<Integer> responsibles = getResponsibles(nodes_in_sim, e.getKey());
+                        int new_responsible = responsibles.get(responsibles.size()-1);
                         Map<Integer, Entry> new_responsible_storage = simulated.get(new_responsible);
                         Entry old_value = new_responsible_storage.get(e.getKey());
                         if (old_value==null || old_value.version < e.getValue().version) {

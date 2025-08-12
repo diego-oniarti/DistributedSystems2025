@@ -1,6 +1,5 @@
 package org.example.msg;
 
-import org.example.Node;
 import java.io.Serializable;
 import org.example.shared.*;
 
@@ -27,12 +26,6 @@ public class Set {
          */
         public final String value;
 
-        /**
-         * Constructor of IntiateMsg class.
-         *
-         * @param key key of the data item
-         * @param value value of the data item
-         */
         public InitiateMsg(int key, String value) {
             this.key=key;
             this.value = value;
@@ -49,12 +42,6 @@ public class Set {
          */
         public final int transacition_id;
 
-        /**
-         * Constructor of VersionRequestMsg class.
-         *
-         * @param key key of the dat item
-         * @param tid set request ID
-         */
         public VersionRequestMsg(int key, int tid) {
             this.key = key;
             this.transacition_id = tid;
@@ -70,12 +57,7 @@ public class Set {
         /** Set request ID.
          */
         public final int transacition_id;
-        /**
-         * Constructor of VersionResponseMsg class.
-         *
-         * @param version the version of the data item
-         * @param tid set request id
-         */
+
         public VersionResponseMsg(int version, int tid) {
             this.version = version;
             this.transacition_id = tid;
@@ -91,12 +73,7 @@ public class Set {
         /** Key of the data item.
          */
         public final int key;
-        /**
-         * Constructor of UpdateEntryMsg class.
-         *
-         * @param key key of the data item
-         * @param entry entry for the data item
-         */
+
         public UpdateEntryMsg(int key, Entry entry) {
             this.entry = entry;
             this.key = key;
@@ -109,18 +86,20 @@ public class Set {
         /** Set request ID.
          */
         public final int transaction_id;
-        /**
-         * Constructor of TimeoutMsg class.
-         *
-         * @param tid set request ID
-         */
+
         public TimeoutMsg(int tid) {
             this.transaction_id = tid;
         }
     }
 
+    /**
+     * This class represents the message to unlock a data ite key for which there were concurrent transactions
+     * (write/write, read/write).
+     */
     public static class UnlockMsg implements Serializable {
+        /** Data item key to unlock. */
         public final int key;
+
         public UnlockMsg(int key) {
             this.key = key;
         }

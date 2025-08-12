@@ -10,15 +10,13 @@ import org.example.msg.Set;
 import org.example.shared.NameGenerator;
 import org.example.shared.NamedClient;
 import org.example.shared.RngList;
-import org.example.msg.Debug.Ops;
 
-import java.io.File;
 import java.util.*;
 
 import static org.example.App.*;
 
 /**
- * The class represents a coordinator that perform a simulation providing project assumptions and requirements.
+ * The class represents a coordinator that performs a simulation providing project assumptions and requirements.
  */
 public class Coordinator extends AbstractActor {
 
@@ -35,6 +33,8 @@ public class Coordinator extends AbstractActor {
     private RngList<Peer> nodes_out;
     /** List of crashed nodes */
     private RngList<Peer> crashed_nodes;
+    /** List of all nodes (in and out) */
+    private List<Peer> all_nodes;
 
     /** Maximum ID of the nodes (in and out) */
     private int max_id;
@@ -47,7 +47,6 @@ public class Coordinator extends AbstractActor {
     private int current_round;
 
     private Random rng;
-    List<Peer> all_nodes;
 
     /// CONSTRUCTOR
 
@@ -82,9 +81,8 @@ public class Coordinator extends AbstractActor {
         this.clients.add(new NamedClient(msg.name, msg.ref));
     }
 
-
     /**
-     * Debug.AddNodesMsg handler; it adds the nodes in/nodes out and update keys.
+     * Debug.AddNodesMsg handler; it adds the nodes in/out and updates keys.
      *
      * @param msg Debug.AddNodesMsg message
      */
@@ -118,6 +116,7 @@ public class Coordinator extends AbstractActor {
         // READ and WRITE
         if (rng.nextBoolean()){
             ongoing_actions = clients.size();
+            // each client performs a read or a write operation
             for (NamedClient client : clients){
                 Peer node;
                 do {
@@ -202,6 +201,12 @@ public class Coordinator extends AbstractActor {
         }
     }
 
+    /**
+     * Debug.SuccessMsg handler; the coordinator receives the success of the operation done in the current
+     * round. Based on this information, it performs operations to start the next round in a correct state.
+     *
+     * @param msg Debug.SuccessMsg message
+     */
     private void receiveSuccess(Debug.SuccessMsg msg) {
         ongoing_actions--;
         Peer acting_node = all_nodes.stream().filter(p->p.ref.equals(msg.node)).findAny().get();
@@ -211,21 +216,21 @@ public class Coordinator extends AbstractActor {
         System.out.println("<<<< SUCCESS " + acting_node.id + " " + msg.op);
 
         switch (msg.op) {
-            case Ops.JOIN:
+            case JOIN:
             nodes_out.remove(acting_node);
             nodes_in.add(acting_node);
             break;
 
-            case Ops.LEAVE:
+            case LEAVE:
             nodes_in.remove(acting_node);
             nodes_out.add(acting_node);
             break;
 
-            case Ops.CRASH:
+            case CRASH:
             crashed_nodes.add(acting_node);
             break;
 
-            case Ops.RECOVER:
+            case RECOVER:
             crashed_nodes.remove(acting_node);
             break;
 
@@ -233,6 +238,8 @@ public class Coordinator extends AbstractActor {
             break;
         }
 
+        // when all the operations of the current round are finished, the coordinator waits until all the remaining
+        // messages are sent/received, then it starts a new round
         if (ongoing_actions<=0) {
             try { Thread.sleep(2*App.MSG_MAX_DELAY); }catch(Exception e) { System.out.println(e.getMessage()); }
             System.out.println("\\\\\\\\\\ ROUND END");
@@ -240,6 +247,12 @@ public class Coordinator extends AbstractActor {
         }
     }
 
+    /**
+     * Debug.FailMsg handler; the coordinator is informed about the failure of the operation done in the current round,
+     * and it starts a new round when all remaining operations/messages are completed.
+     *
+     * @param msg
+     */
     private void receiveFail(Debug.FailMsg msg) {
         ongoing_actions--;
         Peer acting_node = all_nodes.stream().filter(p->p.ref.equals(msg.node)).findAny().get();

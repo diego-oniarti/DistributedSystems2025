@@ -14,11 +14,7 @@ public class Get {
         /** Key of the data item.
          */
         public final int key;
-        /**
-         * Constructor of IntiateMsg class.
-         *
-         * @param key key  of the data item.
-         */
+
         public InitiateMsg(int key) {
             this.key=key;
         }
@@ -33,12 +29,7 @@ public class Get {
         /** Get request ID.
          */
         public final int transacition_id;
-        /**
-         * Constructor of EntryRequestMsg class.
-         *
-         * @param key key of the data item.
-         * @param tid get request ID
-         */
+
         public EntryRequestMsg(int key, int tid) {
             this.key = key;
             this.transacition_id = tid;
@@ -54,12 +45,7 @@ public class Get {
         /** Get request ID.
          */
         public final int transacition_id;
-        /**
-         * Constructor of EntryResponseMsg class.
-         *
-         * @param entry entry of the responsible local storage
-         * @param tid get request ID
-         */
+
         public EntryResponseMsg(Entry entry, int tid) {
             this.entry = entry;
             this.transacition_id = tid;
@@ -73,11 +59,6 @@ public class Get {
          */
         public final int transaction_id;
 
-        /**
-         * Constructor of TimeoutMsg class.
-         *
-         * @param tid get request ID
-         */
         public TimeoutMsg(int tid) {
             this.transaction_id = tid;
         }
@@ -94,12 +75,6 @@ public class Get {
         public final String value;
         public final int version;
 
-        /**
-         * Constructor of SuccessMsg class.
-         *
-         * @param key key of the data item
-         * @param value value of the data item
-         */
         public SuccessMsg(int key, String value, int version) {
             this.key = key;
             this.value = value;
@@ -114,11 +89,6 @@ public class Get {
          */
         public final int key;
 
-        /**
-         * Constructor of FailMsg class.
-         *
-         * @param key key of the data item.
-         */
         public FailMsg(int key) {
             this.key = key;
         }

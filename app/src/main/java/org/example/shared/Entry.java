@@ -6,7 +6,9 @@ package org.example.shared;
 public class Entry {
     /** String name of the data item. */
     public String value;
+    /** version of the data item. */
     public int version;
+
     public Entry (String value, int version) {
         this.value = value;
         this.version = version;

@@ -27,11 +27,6 @@ public class Crash{
          */
         public final ActorRef helper;
 
-        /**
-         * Constructor of RecoveryMsg class.
-         *
-         * @param helper node to request lost information
-         */
         public RecoveryMsg(ActorRef helper) {
             this.helper = helper;
         }
@@ -49,11 +44,7 @@ public class Crash{
         /** Topology of the network.
          */
         public final List<Node.Peer> peers;
-        /**
-         * Constructor of TopologyResponseMsg class.
-         *
-         * @param peers topology of the network
-         */
+
         public TopologyResponseMsg(List<Node.Peer> peers) {
             this.peers = new LinkedList<Node.Peer>();
             this.peers.addAll(peers);
@@ -69,11 +60,7 @@ public class Crash{
          * ID of the recovered node.
          */
         public final int id;
-        /**
-         * Constructor of RequestDataMsg class.
-         *
-         * @param id ID of the recovered node
-         */
+
         public RequestDataMsg(int id) {
             this.id = id;
         }
@@ -86,11 +73,7 @@ public class Crash{
         /** List of data items.
          */
         public final List<Pair<Integer, Entry>> data;
-        /**
-         * Constructor of DataResponseMsg class.
-         *
-         * @param data list of data items
-         */
+
         public DataResponseMsg(List<Pair<Integer, Entry>> data) {
             this.data = data;
         }

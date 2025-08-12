@@ -42,22 +42,31 @@ public class Node extends AbstractActor {
     private HashMap<Integer, GetTransaction> getTransactions;
     /** Number of transactions that the node is managing. */
     private int id_counter;
+
     /** Boolean value, if true the node crashed. */
     private boolean crashed;
-    private Random rnd;
 
-    private HashMap<Integer, Entry> stagedStorage;
-
+    /** Number of data items the joining node is reading */
     private int joinKeyCount;
+    /** True if the joining node was able to contact the bootstrapping peer */
     private boolean is_joining;
+    /** True if one or more joining node read operations failed */
     private boolean join_failed;
 
+    /** Map containing the data items of the leaving node that will be put in the storage if the operation is successful */
+    private HashMap<Integer, Entry> stagedStorage;
+    /** Number of nodes that will store leaving node data items */
     private int leavingCount;
+    /** True is the leaving node is leaving (it is sending its data items to other nodes) */
     private boolean is_leaving;
 
+    /** Set of data items keys for which the node is executing set transactions */
     private java.util.Set<Integer> ongoing_set_keys;
 
+    /** ActorRef of the coordinator */
     private ActorRef coordinator;
+
+    private Random rnd;
 
     /// UTILS
 
@@ -92,6 +101,11 @@ public class Node extends AbstractActor {
         sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
     }
 
+    /**
+     * It schedules a message in the future.
+     *
+     * @param msg a serializable object (a message)
+     */
     private void setTimeout(Serializable msg) {
         getContext().system().scheduler().scheduleOnce(
             Duration.create(App.T, TimeUnit.MILLISECONDS),
@@ -119,7 +133,6 @@ public class Node extends AbstractActor {
      * @param key key of the data item
      * @return the list of nodes that are responsibles for the data item
      */
-    // FIXME: sometimes we have error because we divide by zero
     private List<Peer> getResponsibles(int key) {
         List<Peer> ret = new LinkedList<>();
         int i = 0;
@@ -164,14 +177,6 @@ public class Node extends AbstractActor {
         public Peer (int id, ActorRef ref) {
             this.id = id;
             this.ref = ref;
-        }
-
-        // debug
-        @Override
-        public String toString() {
-            return "Peer{" +
-            "id=" + id +
-            '}';
         }
     }
 
@@ -230,7 +235,7 @@ public class Node extends AbstractActor {
     /// CONSTRUCTOR
 
     /**
-     * Class Node constructor
+     * Class Node constructor.
      *
      * @param id ID of the node
      */
@@ -264,6 +269,7 @@ public class Node extends AbstractActor {
      */
     private void receiveSet(Set.InitiateMsg msg) {
         if (this.crashed) {
+            // debug
             System.out.println("!!! IGNORING SET ON CRASHED");
             return;
         }
@@ -287,7 +293,7 @@ public class Node extends AbstractActor {
 
     /**
      * Set.VersionRequestMsg handler; if the node already contains the data item, it returns its version,
-     *  otherwise it returns -1; it sends the result to the sender.
+     * otherwise it returns -1; it sends the result to the sender.
      *
      * @param msg Set.VersionRequestMsg message
      */
@@ -321,6 +327,7 @@ public class Node extends AbstractActor {
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
+        // FIXME: need to send the message with a delay?
         // Success message creation and send
         transaction.client.tell(new Set.SuccessMsg(), getSelf());
 
@@ -335,13 +342,14 @@ public class Node extends AbstractActor {
 
         List<Peer> responsibles = this.getResponsibles(transaction.key);
 
-        // UpdateEntry message creation (send the data item with the updated version to all responsibles)
+        // UpdateEntry message creation (send the data item with the updated version to all the responsibles for it)
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
         // UpdateEntry message send
         for (Peer responsible: responsibles) {
             sendMessageDelay(responsible.ref, updateMsg);
         }
 
+        // debug
         System.out.println("SET "+transaction.key+" "+transaction.value+" "+maxVersion+" ");
     }
 
@@ -353,12 +361,15 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
-        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.entry.value+" "+msg.entry.version);
         this.ongoing_set_keys.remove(msg.key);
+
+        // debug
+        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.entry.value+" "+msg.entry.version);
     }
 
     /**
-     * Set.TimeoutMsg handler; removes the transaction and sends a FailMsg to the client.
+     * Set.TimeoutMsg handler; it removes the transaction, it sends a FailMsg to the client, and it unlocks the data
+     * item key.
      *
      * @param msg Set.TimeoutMsg message
      */
@@ -369,11 +380,18 @@ public class Node extends AbstractActor {
         if (transaction!=null) {
             transaction.client.tell(new Set.FailMsg(), getSelf());
             for (Peer p: this.getResponsibles(transaction.key)) {
+                // Set.Unlock message creation and sen
                 sendMessageDelay(p.ref, new Set.UnlockMsg(transaction.key));
             }
         }
     }
 
+    /**
+     * Set.UnlockMsg handler; it removes the data item key from the ongoing set keys to be able to start new
+     * set transactions on that data item.
+     *
+     * @param msg Set.UnlockMsg message
+     */
     private void receiveSetUnlock(Set.UnlockMsg msg) {
         this.ongoing_set_keys.remove(msg.key);
     }
@@ -381,12 +399,13 @@ public class Node extends AbstractActor {
     /// GET(k)
 
     /**
-     * Get.InitiateMsg handler; sets a timeout and sends a get request to all the responsibles for the data item.
+     * Get.InitiateMsg handler; sets a timeout and sends a get request to all the responsible for the data item.
      *
      * @param msg Get.InitiateMsg message
      */
     public void receiveGet(Get.InitiateMsg msg) {
         if (this.crashed) {
+            // debug
             System.out.println("!!! IGNORING GET ON CRASHED " + this.id + " " + msg.key);
             return;
         }
@@ -407,20 +426,23 @@ public class Node extends AbstractActor {
     }
 
     /**
-     * Get.EntryRequestMsg handler; takes the entry from the local storage and sends it to the coordinator.
+     * Get.EntryRequestMsg handler; takes the entry from the local storage and sends it to the coordinator (the node
+     * who received the get request).
      *
      * @param msg Get.EntryRequestMsg message
      */
     public void receiveEntryRequest(Get.EntryRequestMsg msg) {
         if (this.crashed) return;
+        // if there is a concurrent set operation, the node stops performing the read operation
         if (this.ongoing_set_keys.contains(msg.key)) return;
+
         Entry entry = this.storage.get(msg.key);
         // EntryResponse message creation and send
         sendMessageDelay(getSender(), new Get.EntryResponseMsg(entry, msg.transacition_id));
     }
 
     /**
-     *  Get.EntryResponseMsg handler; checks the quorum ands sends the most updated data item to the client
+     *  Get.EntryResponseMsg handler; checks the quorum and sends the most updated data item to the client
      *  with a Get.SuccessMsg.
      *
      * @param msg Get.EntryResponseMsg message
@@ -436,17 +458,18 @@ public class Node extends AbstractActor {
         // find the most updated data item
         Entry latestEntry = transaction.replies.stream().filter(Objects::nonNull).max(Comparator.comparingInt(e->e.version)).orElse(null);
 
-        // Success message creation and send
         if (latestEntry!=null){
+            // Success message creation and send
             sendMessageDelay(transaction.client, new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version));
-            System.out.println("GET "+transaction.key+" "+latestEntry.value+" "+latestEntry.version);
 
+            // debug
+            System.out.println("GET "+transaction.key+" "+latestEntry.value+" "+latestEntry.version);
             // debug (sequential consistency)
             System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value + " " + latestEntry.version);
         }else{
+            // Fail message creation and send
             transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
-
     }
 
     /**
@@ -465,16 +488,34 @@ public class Node extends AbstractActor {
 
     // JOIN
 
+    /**
+     * Join.InitiateMsg handler; the joining node contacts the bootstrapping peer to obtain the network topology.
+     *
+     * @param msg Join.InitiateMsg message
+     */
     private void receiveJoinInitiate(Join.InitiateMsg msg){
         if (this.crashed) {return;}
+        // Join.TopologyRequestMsg creation and send
         sendMessageDelay(msg.bootstrapping_peer, new Join.TopologyRequestMsg());
     }
 
+    /**
+     * Join.TopologyRequestMsg handler; the bootstrapping peer sends the topology to the joining node.
+     *
+     * @param msg Join.TopologyRequestMsg message
+     */
     private void receiveTopologyRequest (Join.TopologyRequestMsg msg){
         if (this.crashed) {return;}
+        // Join.TopologyResponseMsg creation and send
         sendMessageDelay(getSender(), new Join.TopologyResponseMsg(this.peers));
     }
 
+    /**
+     * Join.TopologyResponseMsg handler; the joining node asks its clockwise neighbor the data items it will be
+     * responsible for.
+     *
+     * @param msg Join.TopologyResponseMsg message
+     */
     private void receiveTopologyResponse (Join.TopologyResponseMsg msg){
         this.peers = msg.peers;
         this.is_joining = true;
@@ -482,23 +523,40 @@ public class Node extends AbstractActor {
         int myIndex = 0;
         while (myIndex < this.peers.size() && this.peers.get(myIndex).id < this.id) {myIndex++;}
 
+        // Join.ResponsibilityRequestMsg creation and send
         sendMessageDelay(this.peers.get(myIndex%this.peers.size()).ref, new Join.ResponsibilityRequestMsg(this.id));
 
         // TimeoutMsg creation and send
         setTimeout(new Join.TimeoutMsg());
     }
 
+    /**
+     * Join.ResponsibilityRequestMsg handler; the clockwise neighbor of the joining node sends the data items the
+     * joining node will be responsible for.
+     *
+     * @param msg Join.ResponsibilityRequestMsg message
+     */
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg){
         if (this.crashed) {return;}
+        // Join.ResponsibilityResponseMsg creation and send
+        // it sends the data items that have a smaller key than the joining node id and the ones with bigger key
+        // if we have less tha N nodes in the network
         sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
             .filter(k -> k<msg.joining_id || peers.size()<N)
             .collect(Collectors.toSet())));
     }
 
+    /**
+     * Join.ResponsibilityResponseMsg handler; if the joining node receives one or more data items, it performs set
+     * operations on them to obtain the most-updated value.
+     *
+     * @param msg Join.ResponsibilityResponseMsg message
+     */
     private void receiveResponsibilityResponse(Join.ResponsibilityResponseMsg msg){
         if (!is_joining) {return;}
         this.is_joining = false;
 
+        // if the joining node didn't receive data items, it announces itself
         if (msg.keys.isEmpty()){
             Stream.concat(
                 this.peers.stream().map(p->p.ref),
@@ -513,25 +571,41 @@ public class Node extends AbstractActor {
         this.joinKeyCount = msg.keys.size();
         this.join_failed = false;
         for (int k : msg.keys){
+            // Get.InitiateMsg creation and send
             sendMessageDelay(getSelf(), new Get.InitiateMsg(k));
         }
     }
 
+    /**
+     * Join.TimeoutMsg handler; if the joining node wasn't able to contact the bootstrapping peer, the join fails.
+     *
+     * @param msg Join.TimeoutMsg message
+     */
     private void receiveJoinTimeout(Join.TimeoutMsg msg){
         if (!is_joining){return;}
         this.is_joining = false;
-        coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
 
-        System.out.println("JOIN_FAIL"+this.id); // DEBUG
+        // debug
+        coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
+        System.out.println("JOIN_FAIL"+this.id);
     }
 
+    /**
+     * Get.SuccessMsg handler; the joining node inserts the data items to its storage and when all the read
+     * operations are successful, it announces itself.
+     *
+     * @param msg Get.SuccessMsg message
+     */
     private void receiveGetSuccess(Get.SuccessMsg msg){
         this.joinKeyCount--;
 
+        // we are sure we received the max version because of quorum
         this.storage.put(msg.key, new Entry(msg.value, msg.version));
 
-        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.value+" "+msg.version); // DEBUG
+        // debug
+        System.out.println("ADD "+this.id+" "+msg.key+" "+ msg.value+" "+msg.version);
 
+        // when all the read operations completed, the joining node announces itself
         if (this.joinKeyCount==0){
             Stream.concat(
                 this.peers.stream().map(p->p.ref),
@@ -543,13 +617,18 @@ public class Node extends AbstractActor {
         }
     }
 
+    /**
+     * Get.FailMsg handler; the join operations fails when at least one read operation fails.
+     *
+     * @param msg Get.FailMsg message
+     */
     private void receiveGetFail(Get.FailMsg msg){
         if (this.join_failed) return;
         this.join_failed = true;
 
+        // debug
         coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
-
-        System.out.println("JOIN_FAIL"+this.id); // DEBUG
+        System.out.println("JOIN_FAIL"+this.id);
     }
 
     /**
@@ -574,14 +653,16 @@ public class Node extends AbstractActor {
             List<Peer> responsibles = this.getResponsibles(entry.getKey());
             if (!responsibles.stream().anyMatch(p -> p.id == this.id)) {
                 it.remove();
+
+                // debug
                 System.out.println("DELETE "+this.id+" "+entry.getKey());
             }
         }
 
         if (msg.id==this.id){
+            // debug
             System.out.println("JOINING "+this.id);
             coordinator.tell(new Debug.SuccessMsg(Ops.JOIN, this.id, getSelf()), getSelf());
-
             System.out.println("JOIN "+this.id);
         }
     }
@@ -589,7 +670,8 @@ public class Node extends AbstractActor {
     // LEAVE
 
     /**
-     * Leave.InitiateMsg handler; the leaving node says to other nodes that it is leaving the network.
+     * Leave.InitiateMsg handler; the leaving node says to other nodes that it is leaving the network of ot doesn't
+     * have data items, otherwise it sends its data items to the new responsible for them.
      *
      * @param msg Leave.InitiateMsg message
      */
@@ -600,15 +682,17 @@ public class Node extends AbstractActor {
         while (this.peers.get(myIndex).id!=this.id) myIndex++;
         this.peers.remove(myIndex);
 
-        // Early exit
+        // Early exit; it the leaving node doesn't have data itms it is responsible for it can simply leave the
+        // network
         if (this.storage.isEmpty()) {
+            // AnnounceLeavingMsg creation and send
             AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(false);
             for (Peer p: peers) {
                 sendMessageDelay(p.ref, leavingAnnouncement);
             }
-            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
 
             // debug
+            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
             System.out.println("LEAVE "+this.id);
             return;
         }
@@ -618,7 +702,8 @@ public class Node extends AbstractActor {
         for (HashMap.Entry<Integer,Entry> e: this.storage.entrySet()) {
             int key = e.getKey();
             Entry entry = e.getValue();
-            Peer newResponsible = getResponsibles(key).getLast();
+            List<Peer> responsibles = getResponsibles(key);
+            Peer newResponsible = responsibles.get(responsibles.size()-1);
 
             if (!buckets.containsKey(newResponsible)) {
                 buckets.put(newResponsible, new LinkedList<>());
@@ -628,15 +713,18 @@ public class Node extends AbstractActor {
 
         this.is_leaving = true;
         this.leavingCount = buckets.size();
+
+        // Leave.TimeoutMsg creation and send
         setTimeout(new Leave.TimeoutMsg());
         for (HashMap.Entry<Peer, List<Pair<Integer,Entry>>> e: buckets.entrySet()) {
+            // Leave.TransferItemsMsg creation and send
             sendMessageDelay(e.getKey().ref, new Leave.TransferItemsMsg(e.getValue()));
         }
     }
 
     /**
-     * Leave.TransferItemsMsg handler; the new responsibles insert the data items in their local storage if they are
-     * most-up-to-date.
+     * Leave.TransferItemsMsg handler; the new responsible nodes insert the leaving node data items to their staged
+     * storage and inform the leaving node.
      *
      * @param msg Leave.TransferItemsMsg message.
      */
@@ -646,27 +734,44 @@ public class Node extends AbstractActor {
         for (Pair<Integer, Entry> dataItem: msg.items) {
             this.stagedStorage.put(dataItem.first(), dataItem.second());
         }
+        // Leave.AckMsg() creation and send
         sendMessageDelay(getSender(), new Leave.AckMsg());
     }
 
+    /**
+     * Leave.AckMsg handler; if all the new responsible nodes received the data items, the leaving node announces
+     * itself.
+     *
+     * @param msg Leave.AckMsg message
+     */
     private void receiveAck(Leave.AckMsg msg) {
         this.leavingCount--;
         if (this.is_leaving && this.leavingCount==0) {
             this.is_leaving = false;
+            // AnnounceLeavingMsg creation
             AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(true);
             for (Peer p: peers) {
+                // AnnounceLeavingMsg send
                 sendMessageDelay(p.ref, leavingAnnouncement);
             }
-            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
 
             // debug
+            this.coordinator.tell(new Debug.SuccessMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
             System.out.println("LEAVE "+this.id);
         }
     }
 
+    /**
+     * Leave.TimeoutMsg handler; if the leave operation fails (there aren't sufficient nodes that can store the
+     * leaving node data items), we insert back the leaving node into the network.
+     *
+     * @param msg Leave.TimeoutMsg message
+     */
     private void receiveLeavingTimeout(Leave.TimeoutMsg msg) {
         if (!this.is_leaving) return;
         this.is_leaving = false;
+
+        // debug
         this.coordinator.tell(new Debug.FailMsg(Ops.LEAVE, this.id, getSelf()), getSelf());
         
         int myIndex = 0;
@@ -677,6 +782,12 @@ public class Node extends AbstractActor {
         System.out.println("LEAVE_FAIL "+this.id);
     }
 
+    /**
+     * Leave.AnnounceLeavingMsg handler; the nodes remove the leaving node from the network and put the data items
+     * of the staged storage in their storage.
+     *
+     * @param msg Leave.AnnounceLeavingMsg message
+     */
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
         if (msg.insert_staged_keys) {
             for (HashMap.Entry<Integer, Entry> stagedEntry: this.stagedStorage.entrySet()) {
@@ -722,11 +833,13 @@ public class Node extends AbstractActor {
         // Crash.TopologyRequestMsg creation and send
         sendMessageDelay(msg.helper, new Crash.TopologyRequestMsg());
     }
+
     /**
      * Crash.TopologyRequestMsg handler; it sends the network topology to the recovered node.
      *
      * @param msg Crash.TopologyRequestMsg message
      */
+
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
         if (this.crashed) return;
         // Crash.TopologyResponseMsg creation and send
@@ -749,8 +862,9 @@ public class Node extends AbstractActor {
             HashMap.Entry<Integer,Entry> entry = it.next();
             List<Peer> peers = this.getResponsibles(entry.getKey());
             if (!peers.stream().filter(p -> p.id == this.id).findFirst().isPresent()) {
-                // this.storage.remove(entry.getKey());
                 it.remove();
+
+                // debug
                 System.out.println("DELETE "+this.id+" "+entry.getKey());
             }
         }
@@ -768,6 +882,7 @@ public class Node extends AbstractActor {
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
         }
 
+        // debug
         coordinator.tell(new Debug.SuccessMsg(Ops.RECOVER, this.id, getSelf()), getSelf());
         System.out.println("RECOVERY "+this.id);
     }
@@ -800,6 +915,8 @@ public class Node extends AbstractActor {
         for (Pair<Integer, Entry> dataItem: msg.data) {
             if (!this.storage.containsKey(dataItem.first()) || this.storage.get(dataItem.first()).version < dataItem.second().version) {
                 this.storage.put(dataItem.first(), dataItem.second());
+
+                // debug
                 System.out.println("ADD "+this.id+" "+dataItem.first()+" "+dataItem.second().value+" "+dataItem.second().version); // DEBUG
             }
         }
@@ -844,15 +961,8 @@ public class Node extends AbstractActor {
     }
 }
 
-/**
- * Assumptions and Considerations
- * The system will start with N nodes.
- * If this were not the case, the quorum during the joining
- * operation for the first nodes wouldn't be met
- */
-
 /* 
  * TODO
  * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
- * 2. CHECK all crash condition, sometimes they are not needed for project assumptions
+ * 2. CHECK all crash condition, sometimes they are not needed for project assumptions (maybe we insert them in any case?)
  */
