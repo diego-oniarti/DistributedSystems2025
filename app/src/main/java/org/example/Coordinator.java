@@ -113,35 +113,35 @@ public class Coordinator extends AbstractActor {
 
         ongoing_actions = 0;
 
+        RngList<Peer> nodes_in_active = new RngList<>(this.rng);
+        nodes_in_active.addAll(nodes_in);
+        nodes_in_active.removeAll(crashed_nodes);
+        if (nodes_in_active.isEmpty()) {
+            System.err.println("No nodes active. Something is wrong");
+            return;
+        }
+
         // READ and WRITE
         if (rng.nextBoolean()){
             ongoing_actions = clients.size();
             // each client performs a read or a write operation
             for (NamedClient client : clients){
-                Peer node;
-                do {
-                    node = nodes_in.getRandom();
-                    System.err.println("Retry");
-                }while(crashed_nodes.contains(node));
+                Peer node = nodes_in_active.getRandom();
 
                 int key = keys[rng.nextInt(K)];
                 if (rng.nextBoolean()) {
                     // WRITE
                     String fruit = NameGenerator.getFruit();
-                    System.out.println(("SET (" + key + ": " + fruit + ")"));
+                    System.out.println(("set (" + key + ": " + fruit + ")"));
                     node.ref.tell(new Set.InitiateMsg(key, fruit), client.ref);
                 } else {
                     // READ
                     node.ref.tell(new Get.InitiateMsg(key), client.ref);
-                    System.out.println(("GET ("+ key +")"));
+                    System.out.println(("get ("+ key +")"));
                 }
             }
         }else{ // JOIN, LEAVE, CRASH, RECOVERY
-            Peer node;
-            do {
-                node = nodes_in.getRandom();
-                System.err.println("Retry");
-            }while(crashed_nodes.contains(node));
+            Peer node = nodes_in_active.getRandom();
 
             ongoing_actions = 1;
             switch (rng.nextInt(4)){
@@ -154,16 +154,21 @@ public class Coordinator extends AbstractActor {
                 }
                 Peer new_node = nodes_out.getRandom();
 
-                System.out.println("JOIN ("+new_node.id+")");
+                System.out.println("join ("+new_node.id+")");
                 new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
                 break;
 
                 // LEAVE
                 case 1:
-                System.out.println("LEAVE (" + node.id +")");
+                System.out.println("leave (" + node.id +")");
 
                 if (nodes_in.size() == N) {
                     System.out.println("Can't have less than N nodes");
+                    getSelf().tell(new Debug.StartRoundMsg(), getSelf());
+                    return;
+                }
+                if (nodes_in_active.size()==1) {
+                    System.out.println("Only active node can't leave");
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
                     return;
                 }
@@ -180,7 +185,7 @@ public class Coordinator extends AbstractActor {
                     return;
                 }
 
-                System.out.println("CRASH (" + node.id +")");
+                System.out.println("crash (" + node.id +")");
                 node.ref.tell(new Crash.InitiateMsg(),ActorRef.noSender());
                 break;
 
@@ -193,7 +198,7 @@ public class Coordinator extends AbstractActor {
                 }
 
                 Peer crashed_node = crashed_nodes.getRandom();
-                System.out.println("RECOVERY (" + crashed_node.id +")");
+                System.out.println("recovery (" + crashed_node.id +")");
 
                 crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
                 break;

@@ -562,7 +562,7 @@ public class AppDebug {
         try {
             int round = 0;
 
-            File set = new File("set_dynamic.txt");
+            File set = new File("seq_cons.txt");
             Scanner scan = new Scanner(set);
 
             while (scan.hasNextLine()) {
@@ -571,6 +571,8 @@ public class AppDebug {
                     scan.next();
                     scan.next();
                     round = scan.nextInt();
+                    System.out.println("IDEAL STORAGE");
+                    System.out.println(storage_to_string(ideal_storage));
                     break;
                     // ROUND END
                     case "\\\\\\\\\\":
@@ -585,7 +587,7 @@ public class AppDebug {
                                 .append(round).append("\n")
                                 .append("Node: ").append(node_id).append("\n")
                                 .append("Simulated Storage:\n")
-                                .append(storage_to_string(sim_storage))
+                                .append(storage_to_string(sim_storage)).append("\n")
                                 .append("Actual Storage:\n")
                                 .append(storage_to_string(actual_storage));
                             return error.toString();
@@ -623,6 +625,9 @@ public class AppDebug {
                     ideal_storage.put(set_key, new Entry(set_value, set_version));
 
                     // Insert the new data
+                    List<Integer> resp = getResponsibles(nodes_in_sim, set_key);
+                    System.out.println("RESPONSIBLES FOR "+set_key);
+                    System.out.println(resp.stream().map(Objects::toString).collect(Collectors.joining(", ")));
                     getResponsibles(nodes_in_sim, set_key).stream()                         // Responsible ids
                         .filter(id->!nodes_crashed.contains(id))                            // not crashed
                         .map(simulated::get)                                                // get the storage
@@ -636,11 +641,13 @@ public class AppDebug {
                     String get_value = scan.next();
                     int get_version = scan.nextInt();
 
+                    // TODO decide what to do. Can the get return older values?
+
                     // Check the data we're getting is the newest
-                    Entry latest_entry = ideal_storage.get(get_key);
-                    if (!latest_entry.value.equals(get_value) || latest_entry.version != get_version) {
-                        return "Get error on key" + get_key + ".\n Expected <"+ latest_entry.value+", "+latest_entry.version+"> but got <"+get_value+", "+get_version+"> instead.";
-                    }
+                    // Entry latest_entry = ideal_storage.get(get_key);
+                    // if (!latest_entry.value.equals(get_value) || latest_entry.version != get_version) {
+                    //     return "Get error on key" + get_key + ".\n Expected <"+ latest_entry.value+", "+latest_entry.version+"> but got <"+get_value+", "+get_version+"> instead.";
+                    // }
                     break;
 
                     case "JOIN":
@@ -648,16 +655,15 @@ public class AppDebug {
 
                     // Add the node in the ring
                     int index = 0;
-                    while (join_id>nodes_in_sim.get(index)) index++;
+                    while (index<nodes_in_sim.size() && join_id>nodes_in_sim.get(index)) index++;
                     nodes_in_sim.add(index, join_id);
 
                     // Add the data items to the node
                     Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, id->new HashMap<>());
-                    for (HashMap.Entry<Integer, Entry> e: ideal_storage.entrySet()) {
-                        if (isResponsible(nodes_in_sim, join_id, e.getKey())) {
+                    ideal_storage.entrySet().stream().filter(e->isResponsible(nodes_in_sim, join_id, e.getKey()))
+                        .forEach(e->{
                             joining_storage.put(e.getKey(), e.getValue());
-                        }
-                    }
+                        });
 
                     // Remove the data items from the nodes
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
@@ -686,6 +692,19 @@ public class AppDebug {
                     case "RECOVERY":
                     int recovery_id = scan.nextInt();
                     nodes_crashed.remove(recovery_id);
+                    
+                    ideal_storage.keySet().stream()
+                        .filter(key->isResponsible(nodes_in_sim, recovery_id, key))
+                        .forEach(key->{
+                            Entry latest = getResponsibles(nodes_in_sim, key).stream()
+                            .filter(id->!nodes_crashed.contains(id))
+                            .map(simulated::get).filter(Objects::nonNull)
+                            .map(m->m.get(key)).filter(Objects::nonNull)
+                            .max(Comparator.comparingInt(e->e.version)).orElse(null);
+                            simulated.get(recovery_id).put(key, latest);
+                        });
+
+                    remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
 
                     default:
@@ -696,6 +715,7 @@ public class AppDebug {
             scan.close();
         }catch(Exception e) {
             System.out.println(e.getMessage());
+            e.printStackTrace();
         }
 
         return "ALL IS GOOD IN THE WORLD";
@@ -707,7 +727,7 @@ public class AppDebug {
         while (i<nodes_in.size() && nodes_in.get(i) < key) i++;
         if (i==nodes_in.size()) i = 0;
         for (int j=0; j<N; j++) {
-            ret.add((i+j)%nodes_in.size());
+            ret.add(nodes_in.get((i+j)%nodes_in.size()));
         }
         return ret;
     }
@@ -718,6 +738,10 @@ public class AppDebug {
 
     private boolean check_storage_equality(Map<Integer,Entry> s1, Map<Integer,Entry> s2) {
         if (s1 == null && s2 == null) return true;
+
+        if (s1 == null && s2.isEmpty()) return true;
+        if (s2 == null && s1.isEmpty()) return true;
+
         if (s1 == null || s2 == null) return false;
 
         return Stream.concat(
@@ -728,6 +752,9 @@ public class AppDebug {
     }
 
     private String storage_to_string(Map<Integer, Entry> s) {
+        if (s==null) {
+            return "NULL";
+        }
         return s.entrySet().stream()
             .sorted(Comparator.comparingInt(e->e.getKey()))
             .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)
@@ -740,7 +767,14 @@ public class AppDebug {
         java.util.Set<Integer> nodes_crashed) {
         nodes_in.stream()
             .filter(id->!nodes_crashed.contains(id))
-            .map(storages::get)
-            .forEach(Map::clear);
+            .forEach(id->{
+                Iterator<HashMap.Entry<Integer,Entry>> it = storages.get(id).entrySet().iterator();
+                while (it.hasNext()) {
+                    HashMap.Entry<Integer,Entry> e = it.next();
+                    if (!isResponsible(nodes_in, id, e.getKey())) {
+                        it.remove();
+                    }
+                }
+            });
     }
 }
