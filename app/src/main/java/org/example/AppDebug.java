@@ -68,7 +68,7 @@ public class AppDebug {
         }
     }
 
-    /** In creates and add nodes (in and out) to the system informing the coordinator. */
+    /** It creates and add nodes (in and out) to the system informing the coordinator. */
     public void addNodes(){
         for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
@@ -541,7 +541,7 @@ public class AppDebug {
     }
 
     public String check_round_sim(){
-        Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();
+        Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>(); // key -> id, value -> key, <value, version>
         Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();
         Map<Integer, Entry> ideal_storage = new HashMap<>(); // Single storage with all the latest data items
 
@@ -572,8 +572,10 @@ public class AppDebug {
                     scan.next();
                     round = scan.nextInt();
                     break;
-
+                    // ROUND END
                     case "\\\\\\\\\\":
+                    // check that the simulated storage and the actual storage contains the same data items for
+                    // each node in (no crashed nodes)
                     for (int node_id: nodes_in_sim) {
                         Map<Integer, Entry> sim_storage = simulated.get(node_id);
                         Map<Integer, Entry> actual_storage = storages.get(node_id);
@@ -591,6 +593,7 @@ public class AppDebug {
                     }
                     break;
 
+                    // a data item is added when we perform a set, join, leave or recovery operation
                     case "ADD":
                     int add_id = scan.nextInt();
                     int add_key = scan.nextInt();
@@ -600,12 +603,13 @@ public class AppDebug {
                         .put(add_key, new Entry(add_val, add_version));
                     break;
 
+                    // a data item is deleted when we perform a join or recovery operation
                     case "DELETE":
                     int del_id = scan.nextInt();
                     int del_key = scan.nextInt();
                     storages.get(del_id).remove(del_key);
                     break;
-
+                    // SET
                     case "SET":
                     int set_key = scan.nextInt();
                     String set_value = scan.next();
@@ -656,7 +660,7 @@ public class AppDebug {
                     }
 
                     // Remove the data items from the nodes
-                    remove_excess(simulated, ideal_storage, nodes_in_sim, nodes_crashed);
+                    remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
 
                     case "LEAVE":
@@ -731,8 +735,7 @@ public class AppDebug {
     }
 
     private void remove_excess(
-        Map<Integer, Map<Integer, Entry>> storages, 
-        Map<Integer, Entry> ideal,
+        Map<Integer, Map<Integer, Entry>> storages,
         List<Integer> nodes_in,
         java.util.Set<Integer> nodes_crashed) {
         nodes_in.stream()

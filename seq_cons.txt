@@ -1,961 +1,111 @@
 ///// STARTING ROUND 1
-SET (593: jjfpmhgq)
-SET (867: vvyjzjte)
-dkrz : Success SET
-<<<< SUCCESS 0 SET
-SET 593 jjfpmhgq 1 
-tajq : Success SET
-SET 867 vvyjzjte 1 
-<<<< SUCCESS 30 SET
-ADD 10 867 vvyjzjte 1
-ADD 20 593 jjfpmhgq 1
-ADD 0 593 jjfpmhgq 1
-ADD 10 593 jjfpmhgq 1
-ADD 20 867 vvyjzjte 1
-ADD 0 867 vvyjzjte 1
+CRASH (10)
+CRASH 10
+<<<< SUCCESS 10 CRASH
 \\\\\ ROUND END
 ///// STARTING ROUND 2
-JOIN (480)
-JOINING 480
-JOIN 480
-<<<< SUCCESS 480 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 3
-SET (593: mzesqkjp)
-SET (593: liwhxvvs)
-SET 593 liwhxvvs 2 
-tajq : Success SET
-<<<< SUCCESS 0 SET
-ADD 10 593 liwhxvvs 2
-ADD 0 593 liwhxvvs 2
-ADD 20 593 liwhxvvs 2
-dkrz : Fail SET
-<<<< FAIL 20 SET
-\\\\\ ROUND END
-///// STARTING ROUND 4
-GET (1002)
-SET (144: jxleqxol)
-tajq : Success SET
-SET 144 jxleqxol 1 
-<<<< SUCCESS 40 SET
-dkrz: Fail [1002]
-<<<< FAIL 480 GET
-ADD 480 144 jxleqxol 1
-ADD 10 144 jxleqxol 1
-ADD 0 144 jxleqxol 1
-\\\\\ ROUND END
-///// STARTING ROUND 5
-SET (1002: ueftjsrb)
-SET (144: uznbfdsk)
-tajq : Success SET
-SET 144 uznbfdsk 2 
-<<<< SUCCESS 40 SET
-dkrz : Success SET
-SET 1002 ueftjsrb 1 
-<<<< SUCCESS 10 SET
-ADD 480 144 uznbfdsk 2
-ADD 0 1002 ueftjsrb 1
-ADD 10 144 uznbfdsk 2
-ADD 0 144 uznbfdsk 2
-ADD 20 1002 ueftjsrb 1
-ADD 10 1002 ueftjsrb 1
-\\\\\ ROUND END
-///// STARTING ROUND 6
-SET (593: ushraijy)
-GET (867)
-dkrz : Success SET
-SET 593 ushraijy 3 
-<<<< SUCCESS 30 SET
-GET 867 vvyjzjte 1
-ADD 0 593 ushraijy 3
-READ Actor[akka://coordinator_test/user/$c#1516455202] 40 867 vvyjzjte 1
-ADD 10 593 ushraijy 3
-tajq: Success [867: vvyjzjte]
-<<<< SUCCESS 40 GET
-ADD 20 593 ushraijy 3
-\\\\\ ROUND END
-///// STARTING ROUND 7
-JOIN (560)
-GET 144 uznbfdsk 2
-READ Actor[akka://coordinator_test/user/$7#1325720144] 560 144 uznbfdsk 2
-ADD 560 144 uznbfdsk 2
-JOINING 560
-JOIN 560
-<<<< SUCCESS 560 JOIN
-DELETE 10 144
-\\\\\ ROUND END
-///// STARTING ROUND 8
-GET (867)
-GET (867)
-GET 867 vvyjzjte 1
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 480 867 vvyjzjte 1
-GET 867 vvyjzjte 1
-READ Actor[akka://coordinator_test/user/$c#1516455202] 20 867 vvyjzjte 1
-dkrz: Success [867: vvyjzjte]
-<<<< SUCCESS 480 GET
-tajq: Success [867: vvyjzjte]
-<<<< SUCCESS 20 GET
-\\\\\ ROUND END
-///// STARTING ROUND 9
-GET (144)
-GET (144)
-GET 144 uznbfdsk 2
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 480 144 uznbfdsk 2
-GET 144 uznbfdsk 2
-READ Actor[akka://coordinator_test/user/$c#1516455202] 20 144 uznbfdsk 2
-dkrz: Success [144: uznbfdsk]
-<<<< SUCCESS 480 GET
-tajq: Success [144: uznbfdsk]
-<<<< SUCCESS 20 GET
-\\\\\ ROUND END
-///// STARTING ROUND 10
-LEAVE (10)
-<<<< SUCCESS 10 LEAVE
-LEAVE 10
-ADD 30 593 ushraijy 3
-ADD 30 867 vvyjzjte 1
-ADD 30 1002 ueftjsrb 1
-\\\\\ ROUND END
-///// STARTING ROUND 11
-SET (144: zlburdsy)
-GET (1002)
-dkrz : Success SET
-SET 144 zlburdsy 3 
-<<<< SUCCESS 560 SET
-GET 1002 ueftjsrb 1
-READ Actor[akka://coordinator_test/user/$c#1516455202] 40 1002 ueftjsrb 1
-ADD 480 144 zlburdsy 3
-ADD 0 144 zlburdsy 3
-ADD 560 144 zlburdsy 3
-tajq: Success [1002: ueftjsrb]
-<<<< SUCCESS 40 GET
-\\\\\ ROUND END
-///// STARTING ROUND 12
-CRASH (0)
-CRASH 0
-<<<< SUCCESS 0 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 13
-RECOVERY (0)
-RECOVERY 0
-<<<< SUCCESS 0 RECOVER
-\\\\\ ROUND END
-///// STARTING ROUND 14
-SET (144: jazyhoqw)
-GET (144)
-dkrz : Success SET
-SET 144 jazyhoqw 4 
-<<<< SUCCESS 560 SET
-ADD 560 144 jazyhoqw 4
-ADD 480 144 jazyhoqw 4
-ADD 0 144 jazyhoqw 4
-tajq: Fail [144]
+GET (125)
+SET (125: iaogtswa)
+etsk : Fail SET
+<<<< FAIL 0 SET
+fchj: Fail [125]
 <<<< FAIL 0 GET
 \\\\\ ROUND END
-///// STARTING ROUND 15
-GET (867)
-GET (144)
-GET 867 vvyjzjte 1
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 20 867 vvyjzjte 1
-dkrz: Success [867: vvyjzjte]
-<<<< SUCCESS 20 GET
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 20 144 jazyhoqw 4
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 20 GET
+///// STARTING ROUND 3
+JOIN (60)
+<<<< FAIL 60 JOIN
+JOIN_FAIL60
 \\\\\ ROUND END
-///// STARTING ROUND 16
+///// STARTING ROUND 4
+SET (125: ppaomqau)
+SET (20: udqsujek)
+etsk : Fail SET
+fchj : Fail SET
+<<<< FAIL 0 SET
+<<<< FAIL 20 SET
+\\\\\ ROUND END
+///// STARTING ROUND 5
+SET (161: zuwlwlqv)
+SET (125: eignwzkc)
+etsk : Fail SET
+fchj : Fail SET
+<<<< FAIL 20 SET
+<<<< FAIL 0 SET
+\\\\\ ROUND END
+///// STARTING ROUND 6
+GET (125)
+SET (20: zdqvegzh)
+etsk : Fail SET
+<<<< FAIL 0 SET
+fchj: Fail [125]
+<<<< FAIL 0 GET
+\\\\\ ROUND END
+///// STARTING ROUND 7
+GET (240)
+GET (20)
+etsk: Fail [20]
+<<<< FAIL 20 GET
+fchj: Fail [240]
+<<<< FAIL 40 GET
+\\\\\ ROUND END
+///// STARTING ROUND 8
 CRASH (30)
 CRASH 30
 <<<< SUCCESS 30 CRASH
 \\\\\ ROUND END
-///// STARTING ROUND 17
-GET (593)
-GET (144)
-GET 144 jazyhoqw 4
-GET 593 ushraijy 3
-READ Actor[akka://coordinator_test/user/$c#1516455202] 0 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 480 593 ushraijy 3
-dkrz: Success [593: ushraijy]
-<<<< SUCCESS 480 GET
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 0 GET
+///// STARTING ROUND 9
+RECOVERY (10)
+<<<< SUCCESS 10 RECOVER
+RECOVERY 10
 \\\\\ ROUND END
-///// STARTING ROUND 18
-GET (1002)
-SET (1002: aoygqjug)
-GET 1002 ueftjsrb 1
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 480 1002 ueftjsrb 1
-dkrz: Success [1002: ueftjsrb]
-<<<< SUCCESS 480 GET
-tajq : Success SET
-<<<< SUCCESS 0 SET
-SET 1002 aoygqjug 2 
-ADD 20 1002 aoygqjug 2
-ADD 0 1002 aoygqjug 2
-\\\\\ ROUND END
-///// STARTING ROUND 19
-GET (1002)
-GET (144)
-GET 1002 aoygqjug 2
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 40 1002 aoygqjug 2
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 480 144 jazyhoqw 4
-dkrz: Success [1002: aoygqjug]
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 40 GET
-<<<< SUCCESS 480 GET
-\\\\\ ROUND END
-///// STARTING ROUND 20
-CRASH (0)
-CRASH 0
-<<<< SUCCESS 0 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 21
-SET (1002: nwvpjata)
-SET (1002: dliipwtz)
-tajq : Fail SET
-dkrz : Fail SET
+///// STARTING ROUND 10
+GET (125)
+SET (161: bykupnfy)
+etsk : Fail SET
 <<<< FAIL 40 SET
-<<<< FAIL 480 SET
+fchj: Fail [125]
+<<<< FAIL 40 GET
 \\\\\ ROUND END
-///// STARTING ROUND 22
-LEAVE (480)
-LEAVE 480
-<<<< SUCCESS 480 LEAVE
-ADD 20 144 jazyhoqw 4
-\\\\\ ROUND END
-///// STARTING ROUND 23
+///// STARTING ROUND 11
 RECOVERY (30)
 RECOVERY 30
 <<<< SUCCESS 30 RECOVER
-ADD 30 1002 aoygqjug 2
 \\\\\ ROUND END
-///// STARTING ROUND 24
-SET (1002: ivaveubj)
-GET (144)
-dkrz : Success SET
-SET 1002 ivaveubj 3 
-<<<< SUCCESS 20 SET
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 40 144 jazyhoqw 4
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 40 GET
-ADD 30 1002 ivaveubj 3
-ADD 20 1002 ivaveubj 3
+///// STARTING ROUND 12
+SET (240: yavpxghi)
+GET (240)
+fchj : Fail SET
+<<<< FAIL 0 SET
+etsk: Fail [240]
+<<<< FAIL 20 GET
 \\\\\ ROUND END
-///// STARTING ROUND 25
-GET (144)
-GET (1002)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 30 144 jazyhoqw 4
-GET 1002 ivaveubj 3
-READ Actor[akka://coordinator_test/user/$c#1516455202] 30 1002 ivaveubj 3
-dkrz: Success [144: jazyhoqw]
-<<<< SUCCESS 30 GET
-tajq: Success [1002: ivaveubj]
-<<<< SUCCESS 30 GET
-\\\\\ ROUND END
-///// STARTING ROUND 26
-GET (144)
-SET (593: ikvbbyiq)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 30 144 jazyhoqw 4
-tajq : Success SET
-<<<< SUCCESS 20 SET
-SET 593 ikvbbyiq 4 
-ADD 20 593 ikvbbyiq 4
-dkrz: Success [144: jazyhoqw]
-<<<< SUCCESS 30 GET
-ADD 30 593 ikvbbyiq 4
-\\\\\ ROUND END
-///// STARTING ROUND 27
-JOIN (650)
-<<<< FAIL 650 JOIN
-JOIN_FAIL650
-\\\\\ ROUND END
-///// STARTING ROUND 28
-GET (144)
-GET (144)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 560 144 jazyhoqw 4
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 560 GET
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 30 144 jazyhoqw 4
-dkrz: Success [144: jazyhoqw]
-<<<< SUCCESS 30 GET
-\\\\\ ROUND END
-///// STARTING ROUND 29
-LEAVE (40)
-<<<< SUCCESS 40 LEAVE
-LEAVE 40
-\\\\\ ROUND END
-///// STARTING ROUND 30
-SET (1002: qhjyteka)
-GET (144)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 30 144 jazyhoqw 4
-dkrz : Success SET
-SET 1002 qhjyteka 4 
-<<<< SUCCESS 30 SET
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 30 GET
-ADD 30 1002 qhjyteka 4
-ADD 20 1002 qhjyteka 4
-\\\\\ ROUND END
-///// STARTING ROUND 31
-JOIN (160)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$t#1819654851] 160 144 jazyhoqw 4
-ADD 160 144 jazyhoqw 4
-DELETE 20 144
-JOINING 160
-JOIN 160
-<<<< SUCCESS 160 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 32
-SET (867: ztpquzjp)
-SET (593: avaiyriq)
-tajq : Success SET
-SET 593 avaiyriq 5 
-<<<< SUCCESS 160 SET
-ADD 20 593 avaiyriq 5
-dkrz : Success SET
-<<<< SUCCESS 560 SET
-SET 867 ztpquzjp 2 
-ADD 30 867 ztpquzjp 2
-ADD 30 593 avaiyriq 5
-ADD 20 867 ztpquzjp 2
-\\\\\ ROUND END
-///// STARTING ROUND 33
-GET (144)
-SET (867: wmxesdqq)
-tajq : Success SET
-SET 867 wmxesdqq 3 
-<<<< SUCCESS 160 SET
-ADD 20 867 wmxesdqq 3
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 30 144 jazyhoqw 4
-ADD 30 867 wmxesdqq 3
-dkrz: Success [144: jazyhoqw]
-<<<< SUCCESS 30 GET
-\\\\\ ROUND END
-///// STARTING ROUND 34
-CRASH (30)
-CRASH 30
-<<<< SUCCESS 30 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 35
-SET (867: xdrhbtyr)
-SET (867: derlfnyk)
-dkrz : Fail SET
-tajq : Fail SET
-<<<< FAIL 560 SET
-<<<< FAIL 20 SET
-\\\\\ ROUND END
-///// STARTING ROUND 36
-SET (867: kvhexhei)
-GET (144)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$c#1516455202] 160 144 jazyhoqw 4
-tajq: Success [144: jazyhoqw]
-<<<< SUCCESS 160 GET
-dkrz : Fail SET
-<<<< FAIL 560 SET
-\\\\\ ROUND END
-///// STARTING ROUND 37
-JOIN (380)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$P#-951299674] 380 144 jazyhoqw 4
-ADD 380 144 jazyhoqw 4
-JOINING 380
-JOIN 380
-<<<< SUCCESS 380 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 38
-JOIN (860)
-JOIN_FAIL860
-<<<< FAIL 860 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 39
-LEAVE (560)
-<<<< FAIL 560 LEAVE
-LEAVE_FAIL 560
-\\\\\ ROUND END
-///// STARTING ROUND 40
-CRASH (20)
-CRASH 20
-<<<< SUCCESS 20 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 41
-JOIN (500)
-GET 144 jazyhoqw 4
-READ Actor[akka://coordinator_test/user/$1#2106664792] 500 144 jazyhoqw 4
-ADD 500 144 jazyhoqw 4
-JOINING 500
-JOIN 500
-<<<< SUCCESS 500 JOIN
-DELETE 560 144
-\\\\\ ROUND END
-///// STARTING ROUND 42
-SET (593: vkopopcz)
-SET (144: bywivwdl)
-tajq : Success SET
-SET 144 bywivwdl 5 
-<<<< SUCCESS 500 SET
-ADD 380 144 bywivwdl 5
-ADD 160 144 bywivwdl 5
-ADD 500 144 bywivwdl 5
-dkrz : Fail SET
-<<<< FAIL 380 SET
-\\\\\ ROUND END
-///// STARTING ROUND 43
-RECOVERY (20)
-RECOVERY 20
-<<<< SUCCESS 20 RECOVER
-\\\\\ ROUND END
-///// STARTING ROUND 44
+///// STARTING ROUND 13
 LEAVE (20)
 LEAVE 20
 <<<< SUCCESS 20 LEAVE
-ADD 160 593 avaiyriq 5
-ADD 160 867 wmxesdqq 3
-ADD 160 1002 qhjyteka 4
 \\\\\ ROUND END
-///// STARTING ROUND 45
-RECOVERY (0)
-DELETE 0 144
-RECOVERY 0
-<<<< SUCCESS 0 RECOVER
-ADD 0 593 avaiyriq 5
-ADD 0 867 wmxesdqq 3
-ADD 0 1002 qhjyteka 4
-\\\\\ ROUND END
-///// STARTING ROUND 46
-RECOVERY (30)
-RECOVERY 30
-<<<< SUCCESS 30 RECOVER
-\\\\\ ROUND END
-///// STARTING ROUND 47
-LEAVE (500)
-LEAVE 500
-<<<< SUCCESS 500 LEAVE
-ADD 560 144 bywivwdl 5
-\\\\\ ROUND END
-///// STARTING ROUND 48
-SET (1002: ckxxrvka)
-GET (144)
-dkrz : Success SET
-SET 1002 ckxxrvka 5 
-<<<< SUCCESS 0 SET
-GET 144 bywivwdl 5
-READ Actor[akka://coordinator_test/user/$c#1516455202] 380 144 bywivwdl 5
-ADD 30 1002 ckxxrvka 5
-ADD 160 1002 ckxxrvka 5
-tajq: Success [144: bywivwdl]
-<<<< SUCCESS 380 GET
-ADD 0 1002 ckxxrvka 5
-\\\\\ ROUND END
-///// STARTING ROUND 49
-LEAVE (380)
-LEAVE 380
-<<<< SUCCESS 380 LEAVE
-ADD 0 144 bywivwdl 5
-\\\\\ ROUND END
-///// STARTING ROUND 50
-SET (867: mlrkajhm)
-SET (1002: xufukjtz)
-tajq : Success SET
-SET 1002 xufukjtz 6 
-<<<< SUCCESS 0 SET
-dkrz : Success SET
-SET 867 mlrkajhm 4 
-<<<< SUCCESS 160 SET
-ADD 0 867 mlrkajhm 4
-ADD 0 1002 xufukjtz 6
-ADD 160 1002 xufukjtz 6
-ADD 30 1002 xufukjtz 6
-ADD 160 867 mlrkajhm 4
-ADD 30 867 mlrkajhm 4
-\\\\\ ROUND END
-///// STARTING ROUND 51
-GET (867)
-SET (593: gonptuht)
-tajq : Success SET
-SET 593 gonptuht 6 
-<<<< SUCCESS 30 SET
-GET 867 mlrkajhm 4
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 0 867 mlrkajhm 4
-ADD 30 593 gonptuht 6
-ADD 160 593 gonptuht 6
-dkrz: Success [867: mlrkajhm]
-ADD 0 593 gonptuht 6
-<<<< SUCCESS 0 GET
-\\\\\ ROUND END
-///// STARTING ROUND 52
-SET (867: gdbdqwro)
-GET (144)
-dkrz : Success SET
-GET 144 bywivwdl 5
-SET 867 gdbdqwro 5 
-READ Actor[akka://coordinator_test/user/$c#1516455202] 160 144 bywivwdl 5
-<<<< SUCCESS 30 SET
-ADD 160 867 gdbdqwro 5
-ADD 30 867 gdbdqwro 5
-tajq: Success [144: bywivwdl]
-<<<< SUCCESS 160 GET
-ADD 0 867 gdbdqwro 5
-\\\\\ ROUND END
-///// STARTING ROUND 53
-SET (1002: acdmabdk)
-GET (593)
-GET 593 gonptuht 6
-READ Actor[akka://coordinator_test/user/$c#1516455202] 30 593 gonptuht 6
-tajq: Success [593: gonptuht]
-<<<< SUCCESS 30 GET
-SET 1002 acdmabdk 7 
-dkrz : Success SET
-<<<< SUCCESS 30 SET
-ADD 0 1002 acdmabdk 7
-ADD 160 1002 acdmabdk 7
-ADD 30 1002 acdmabdk 7
-\\\\\ ROUND END
-///// STARTING ROUND 54
-JOIN (1000)
-GET 867 gdbdqwro 5
-READ Actor[akka://coordinator_test/user/$Nb#1803184014] 1000 867 gdbdqwro 5
-GET 593 gonptuht 6
-READ Actor[akka://coordinator_test/user/$Nb#1803184014] 1000 593 gonptuht 6
-GET 144 bywivwdl 5
-READ Actor[akka://coordinator_test/user/$Nb#1803184014] 1000 144 bywivwdl 5
-ADD 1000 593 gonptuht 6
-ADD 1000 144 bywivwdl 5
-ADD 1000 867 gdbdqwro 5
-JOINING 1000
-JOIN 1000
-<<<< SUCCESS 1000 JOIN
-DELETE 160 593
-DELETE 160 867
-DELETE 0 144
-\\\\\ ROUND END
-///// STARTING ROUND 55
+///// STARTING ROUND 14
 No crashed nodes to recover
-///// STARTING ROUND 56
-GET (1002)
-GET (867)
-GET 1002 acdmabdk 7
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 560 1002 acdmabdk 7
-GET 867 gdbdqwro 5
-READ Actor[akka://coordinator_test/user/$c#1516455202] 30 867 gdbdqwro 5
-dkrz: Success [1002: acdmabdk]
-<<<< SUCCESS 560 GET
-tajq: Success [867: gdbdqwro]
-<<<< SUCCESS 30 GET
-\\\\\ ROUND END
-///// STARTING ROUND 57
-LEAVE (1000)
-LEAVE 1000
-<<<< SUCCESS 1000 LEAVE
-ADD 160 593 gonptuht 6
-ADD 160 867 gdbdqwro 5
-ADD 0 144 bywivwdl 5
-\\\\\ ROUND END
-///// STARTING ROUND 58
-CRASH (160)
-CRASH 160
-<<<< SUCCESS 160 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 59
-RECOVERY (160)
-RECOVERY 160
-<<<< SUCCESS 160 RECOVER
-\\\\\ ROUND END
-///// STARTING ROUND 60
-GET (1002)
-GET (593)
-GET 1002 acdmabdk 7
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 160 1002 acdmabdk 7
-GET 593 gonptuht 6
-READ Actor[akka://coordinator_test/user/$c#1516455202] 160 593 gonptuht 6
-dkrz: Success [1002: acdmabdk]
-<<<< SUCCESS 160 GET
-tajq: Success [593: gonptuht]
-<<<< SUCCESS 160 GET
-\\\\\ ROUND END
-///// STARTING ROUND 61
-CRASH (160)
-CRASH 160
-<<<< SUCCESS 160 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 62
-RECOVERY (160)
-RECOVERY 160
-<<<< SUCCESS 160 RECOVER
-\\\\\ ROUND END
-///// STARTING ROUND 63
-JOIN (860)
-GET 593 gonptuht 6
-READ Actor[akka://coordinator_test/user/$zb#-373849011] 860 593 gonptuht 6
-ADD 860 593 gonptuht 6
-GET 144 bywivwdl 5
-READ Actor[akka://coordinator_test/user/$zb#-373849011] 860 144 bywivwdl 5
-ADD 860 144 bywivwdl 5
-DELETE 160 593
-DELETE 0 144
-JOINING 860
-JOIN 860
-<<<< SUCCESS 860 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 64
-SET (867: uplnuibw)
-SET (593: ynelxwcs)
-tajq : Success SET
-SET 593 ynelxwcs 7 
-<<<< SUCCESS 560 SET
-dkrz : Success SET
-SET 867 uplnuibw 6 
-<<<< SUCCESS 30 SET
-ADD 30 593 ynelxwcs 7
-ADD 860 593 ynelxwcs 7
-ADD 0 867 uplnuibw 6
-ADD 0 593 ynelxwcs 7
-ADD 30 867 uplnuibw 6
-ADD 160 867 uplnuibw 6
-\\\\\ ROUND END
-///// STARTING ROUND 65
-SET (144: gnymzukf)
-GET (593)
-dkrz : Success SET
-SET 144 gnymzukf 6 
-<<<< SUCCESS 0 SET
-GET 593 ynelxwcs 7
-READ Actor[akka://coordinator_test/user/$c#1516455202] 860 593 ynelxwcs 7
-ADD 560 144 gnymzukf 6
-ADD 160 144 gnymzukf 6
-tajq: Success [593: ynelxwcs]
-<<<< SUCCESS 860 GET
-ADD 860 144 gnymzukf 6
-\\\\\ ROUND END
-///// STARTING ROUND 66
-JOIN (250)
-GET 144 gnymzukf 6
-READ Actor[akka://coordinator_test/user/$C#701234525] 250 144 gnymzukf 6
-ADD 250 144 gnymzukf 6
-JOINING 250
-JOIN 250
-DELETE 860 144
-<<<< SUCCESS 250 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 67
+///// STARTING ROUND 15
 No crashed nodes to recover
-///// STARTING ROUND 68
-GET (144)
-SET (144: whbqgopy)
-tajq : Success SET
-SET 144 whbqgopy 7 
-<<<< SUCCESS 860 SET
-ADD 560 144 whbqgopy 7
-ADD 250 144 whbqgopy 7
-ADD 160 144 whbqgopy 7
-dkrz: Fail [144]
-<<<< FAIL 160 GET
-\\\\\ ROUND END
-///// STARTING ROUND 69
-LEAVE (250)
-LEAVE 250
-<<<< SUCCESS 250 LEAVE
-ADD 860 144 whbqgopy 7
-\\\\\ ROUND END
-///// STARTING ROUND 70
-GET (1002)
-SET (593: xbkpphjd)
-tajq : Success SET
-SET 593 xbkpphjd 8 
-<<<< SUCCESS 0 SET
-GET 1002 acdmabdk 7
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 30 1002 acdmabdk 7
-ADD 30 593 xbkpphjd 8
-ADD 0 593 xbkpphjd 8
-dkrz: Success [1002: acdmabdk]
-<<<< SUCCESS 30 GET
-ADD 860 593 xbkpphjd 8
-\\\\\ ROUND END
-///// STARTING ROUND 71
-No crashed nodes to recover
-///// STARTING ROUND 72
-JOIN (1020)
-GET 867 uplnuibw 6
-READ Actor[akka://coordinator_test/user/$Pb#-1694381893] 1020 867 uplnuibw 6
-GET 593 xbkpphjd 8
-READ Actor[akka://coordinator_test/user/$Pb#-1694381893] 1020 593 xbkpphjd 8
-GET 1002 acdmabdk 7
-READ Actor[akka://coordinator_test/user/$Pb#-1694381893] 1020 1002 acdmabdk 7
-ADD 1020 867 uplnuibw 6
-ADD 1020 593 xbkpphjd 8
-ADD 1020 1002 acdmabdk 7
-DELETE 30 593
-DELETE 160 867
-DELETE 160 1002
-JOINING 1020
-JOIN 1020
-<<<< SUCCESS 1020 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 73
-SET (1002: kpshtgqa)
-GET (1002)
-dkrz : Success SET
-SET 1002 kpshtgqa 8 
-<<<< SUCCESS 160 SET
-ADD 30 1002 kpshtgqa 8
-ADD 0 1002 kpshtgqa 8
-ADD 1020 1002 kpshtgqa 8
-tajq: Fail [1002]
-<<<< FAIL 560 GET
-\\\\\ ROUND END
-///// STARTING ROUND 74
-No crashed nodes to recover
-///// STARTING ROUND 75
-GET (144)
-GET (144)
-GET 144 whbqgopy 7
-tajq: Success [144: whbqgopy]
-READ Actor[akka://coordinator_test/user/$c#1516455202] 30 144 whbqgopy 7
-<<<< SUCCESS 30 GET
-GET 144 whbqgopy 7
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 0 144 whbqgopy 7
-dkrz: Success [144: whbqgopy]
-<<<< SUCCESS 0 GET
-\\\\\ ROUND END
-///// STARTING ROUND 76
-SET (593: uzxyogjp)
-SET (867: ncopxlvz)
-tajq : Success SET
-SET 867 ncopxlvz 7 
-<<<< SUCCESS 30 SET
-dkrz : Success SET
-SET 593 uzxyogjp 9 
-<<<< SUCCESS 30 SET
-ADD 30 867 ncopxlvz 7
-ADD 0 867 ncopxlvz 7
-ADD 1020 867 ncopxlvz 7
-ADD 0 593 uzxyogjp 9
-ADD 860 593 uzxyogjp 9
-ADD 1020 593 uzxyogjp 9
-\\\\\ ROUND END
-///// STARTING ROUND 77
-JOIN (420)
-GET 144 whbqgopy 7
-READ Actor[akka://coordinator_test/user/$T#-766626078] 420 144 whbqgopy 7
-ADD 420 144 whbqgopy 7
-DELETE 860 144
-JOINING 420
-JOIN 420
-<<<< SUCCESS 420 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 78
-SET (144: qthkmawq)
-GET (593)
-GET 593 uzxyogjp 9
-tajq: Success [593: uzxyogjp]
-READ Actor[akka://coordinator_test/user/$c#1516455202] 560 593 uzxyogjp 9
-<<<< SUCCESS 560 GET
-dkrz : Success SET
-SET 144 qthkmawq 8 
-<<<< SUCCESS 420 SET
-ADD 160 144 qthkmawq 8
-ADD 560 144 qthkmawq 8
-ADD 420 144 qthkmawq 8
-\\\\\ ROUND END
-///// STARTING ROUND 79
-JOIN (820)
-GET 593 uzxyogjp 9
-READ Actor[akka://coordinator_test/user/$vb#-225326006] 820 593 uzxyogjp 9
-ADD 820 593 uzxyogjp 9
-JOINING 820
-JOIN 820
-<<<< SUCCESS 820 JOIN
-DELETE 0 593
-\\\\\ ROUND END
-///// STARTING ROUND 80
-SET (144: uknnihmp)
-GET (144)
-dkrz : Success SET
-SET 144 uknnihmp 9 
-<<<< SUCCESS 0 SET
-GET 144 qthkmawq 8
-READ Actor[akka://coordinator_test/user/$c#1516455202] 860 144 qthkmawq 8
-tajq: Success [144: qthkmawq]
-<<<< SUCCESS 860 GET
-ADD 420 144 uknnihmp 9
-ADD 160 144 uknnihmp 9
-ADD 560 144 uknnihmp 9
-\\\\\ ROUND END
-///// STARTING ROUND 81
-SET (144: amleuegc)
-SET (867: rgnonlok)
-tajq : Success SET
-SET 867 rgnonlok 8 
-<<<< SUCCESS 420 SET
-dkrz : Success SET
-SET 144 amleuegc 10 
-<<<< SUCCESS 860 SET
-ADD 1020 867 rgnonlok 8
-ADD 560 144 amleuegc 10
-ADD 420 144 amleuegc 10
-ADD 30 867 rgnonlok 8
-ADD 0 867 rgnonlok 8
-ADD 160 144 amleuegc 10
-\\\\\ ROUND END
-///// STARTING ROUND 82
-LEAVE (860)
-LEAVE 860
-<<<< SUCCESS 860 LEAVE
-ADD 0 593 uzxyogjp 9
-\\\\\ ROUND END
-///// STARTING ROUND 83
-SET (144: zpcvezmf)
-SET (593: cysuhdez)
-tajq : Success SET
-<<<< SUCCESS 0 SET
-SET 593 cysuhdez 10 
-dkrz : Success SET
-SET 144 zpcvezmf 11 
-ADD 820 593 cysuhdez 10
-<<<< SUCCESS 30 SET
-ADD 0 593 cysuhdez 10
-ADD 420 144 zpcvezmf 11
-ADD 1020 593 cysuhdez 10
-ADD 160 144 zpcvezmf 11
-ADD 560 144 zpcvezmf 11
-\\\\\ ROUND END
-///// STARTING ROUND 84
-CRASH (0)
-CRASH 0
-<<<< SUCCESS 0 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 85
+///// STARTING ROUND 16
 LEAVE (30)
 LEAVE 30
 <<<< SUCCESS 30 LEAVE
-ADD 160 867 rgnonlok 8
-ADD 160 1002 kpshtgqa 8
 \\\\\ ROUND END
-///// STARTING ROUND 86
-LEAVE (820)
-LEAVE 820
-<<<< SUCCESS 820 LEAVE
-ADD 160 593 cysuhdez 10
+///// STARTING ROUND 17
+CRASH (10)
+CRASH 10
+<<<< SUCCESS 10 CRASH
 \\\\\ ROUND END
-///// STARTING ROUND 87
-SET (1002: zmvyunvn)
-SET (144: ijiflpxx)
-tajq : Success SET
-SET 144 ijiflpxx 12 
-<<<< SUCCESS 1020 SET
-dkrz : Success SET
-SET 1002 zmvyunvn 9 
-ADD 560 144 ijiflpxx 12
-<<<< SUCCESS 1020 SET
-ADD 160 144 ijiflpxx 12
-ADD 420 144 ijiflpxx 12
-ADD 160 1002 zmvyunvn 9
-ADD 1020 1002 zmvyunvn 9
+///// STARTING ROUND 18
+GET (240)
+GET (240)
+fchj: Fail [240]
+<<<< FAIL 0 GET
+etsk: Fail [240]
+<<<< FAIL 40 GET
 \\\\\ ROUND END
-///// STARTING ROUND 88
-JOIN (240)
-GET 144 ijiflpxx 12
-READ Actor[akka://coordinator_test/user/$B#-1425101724] 240 144 ijiflpxx 12
-ADD 240 144 ijiflpxx 12
-DELETE 560 144
-JOINING 240
-JOIN 240
-<<<< SUCCESS 240 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 89
-CRASH (1020)
-CRASH 1020
-<<<< SUCCESS 1020 CRASH
-\\\\\ ROUND END
-///// STARTING ROUND 90
-SET (1002: bprnfgrb)
-GET (593)
-dkrz : Fail SET
-<<<< FAIL 560 SET
-tajq: Fail [593]
-<<<< FAIL 160 GET
-\\\\\ ROUND END
-///// STARTING ROUND 91
-GET (144)
-GET (593)
-GET 144 ijiflpxx 12
-READ Actor[akka://coordinator_test/user/$b#-1845888872] 420 144 ijiflpxx 12
-dkrz: Success [144: ijiflpxx]
-<<<< SUCCESS 420 GET
-tajq: Fail [593]
-<<<< FAIL 560 GET
-\\\\\ ROUND END
-///// STARTING ROUND 92
-LEAVE (560)
-LEAVE 560
-<<<< SUCCESS 560 LEAVE
-\\\\\ ROUND END
-///// STARTING ROUND 93
-SET (144: ocrhctwv)
-GET (593)
-dkrz : Success SET
-SET 144 ocrhctwv 13 
-<<<< SUCCESS 240 SET
-ADD 240 144 ocrhctwv 13
-ADD 160 144 ocrhctwv 13
-ADD 420 144 ocrhctwv 13
-tajq: Fail [593]
-<<<< FAIL 420 GET
-\\\\\ ROUND END
-///// STARTING ROUND 94
-LEAVE (160)
-LEAVE_FAIL 160
-<<<< FAIL 160 LEAVE
-\\\\\ ROUND END
-///// STARTING ROUND 95
-GET (593)
-SET (867: dfdpfjwf)
-tajq : Fail SET
-<<<< FAIL 160 SET
-dkrz: Fail [593]
-<<<< FAIL 420 GET
-\\\\\ ROUND END
-///// STARTING ROUND 96
-RECOVERY (0)
-RECOVERY 0
-<<<< SUCCESS 0 RECOVER
-ADD 0 1002 zmvyunvn 9
-\\\\\ ROUND END
-///// STARTING ROUND 97
-JOIN (970)
-JOIN_FAIL970
-<<<< FAIL 970 JOIN
-\\\\\ ROUND END
-///// STARTING ROUND 98
-SET (867: tdemgkpk)
-SET (593: ujnigfif)
-SET 867 tdemgkpk 9 
-dkrz : Success SET
-<<<< SUCCESS 420 SET
-ADD 160 867 tdemgkpk 9
-tajq : Success SET
-SET 593 ujnigfif 11 
-<<<< SUCCESS 160 SET
-ADD 0 867 tdemgkpk 9
-ADD 160 593 ujnigfif 11
-ADD 0 593 ujnigfif 11
-\\\\\ ROUND END
-///// STARTING ROUND 99
-JOIN (90)
-DELETE 160 593
-DELETE 160 867
-DELETE 160 1002
-JOINING 90
-JOIN 90
-<<<< SUCCESS 90 JOIN
-\\\\\ ROUND END
+///// STARTING ROUND 19
+LEAVE (40)
+Can't have less than N nodes
