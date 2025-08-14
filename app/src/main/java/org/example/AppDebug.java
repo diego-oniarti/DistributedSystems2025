@@ -70,7 +70,7 @@ public class AppDebug {
 
     /** It creates and add nodes (in and out) to the system informing the coordinator. */
     public void addNodes(){
-        for (int i=0; i<STARTING_NODES+ROUNDS; i++) {
+        for (int i=0; i<STARTING_NODES*2; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
             p.ref.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
             if (i<STARTING_NODES){
@@ -541,17 +541,19 @@ public class AppDebug {
     }
 
     public String check_round_sim(){
-        Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>(); // key -> id, value -> key, <value, version>
-        Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();
-        Map<Integer, Entry> ideal_storage = new HashMap<>(); // Single storage with all the latest data items
+        /** Storages of all the nodes in the system. Mirrors the state of the system as described by the ADD and DELETE operations */
+        Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();  // NodeId -> ( DataKey -> <Value, Version> )
 
-        /* TODO
-        * Put all nodes storages. We'll only keep track of the contents and not the
-        * configuration.
-        * We'll still keep track of the configuration of the simulated system
-        */
+        /** Storages of all the nodes in the system. Mirrors the state of the system as described by the SET, JOIN, CRASH, etc... operations */
+        Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();  // NodeId -> ( DataKey -> <Value, Version> )
 
+        /** Storage containing all the up-to-date data items */
+        Map<Integer, Entry> ideal_storage = new HashMap<>();            // DataKey -> <Value, Version>
+
+        /** List of NodeIDs representing the ring formation in the simulation */
         List<Integer> nodes_in_sim  = new LinkedList<>();
+
+        /** Set of IDs of the nodes that are crashed */
         java.util.Set<Integer> nodes_crashed = new HashSet<Integer>();
 
         for (Peer p: nodes_in) {
@@ -568,16 +570,22 @@ public class AppDebug {
             while (scan.hasNextLine()) {
                 switch (scan.next()) {
                     case "/////":
+                    // Print the ideal storage at the beginning of each round
                     scan.next();
                     scan.next();
                     round = scan.nextInt();
+                    System.out.println("ROUND "+round);
+                    System.out.println("Nodes:");
+                    System.out.println(nodes_in_sim.stream().map(id->nodes_crashed.contains(id)?id+"x":id.toString()).collect(Collectors.joining(" ")));
                     System.out.println("IDEAL STORAGE");
                     System.out.println(storage_to_string(ideal_storage));
+                    System.out.println();
                     break;
+
                     // ROUND END
                     case "\\\\\\\\\\":
-                    // check that the simulated storage and the actual storage contains the same data items for
-                    // each node in (no crashed nodes)
+                    // check that the simulated storage and the actual storage contain the same data items for
+                    // each node in the ring
                     for (int node_id: nodes_in_sim) {
                         Map<Integer, Entry> sim_storage = simulated.get(node_id);
                         Map<Integer, Entry> actual_storage = storages.get(node_id);
@@ -626,14 +634,10 @@ public class AppDebug {
 
                     // Insert the new data
                     List<Integer> resp = getResponsibles(nodes_in_sim, set_key);
-                    System.out.println("RESPONSIBLES FOR "+set_key);
-                    System.out.println(resp.stream().map(Objects::toString).collect(Collectors.joining(", ")));
-                    getResponsibles(nodes_in_sim, set_key).stream()                         // Responsible ids
-                        .filter(id->!nodes_crashed.contains(id))                            // not crashed
-                        .map(simulated::get)                                                // get the storage
-                        .forEach(responsible->{
-                            responsible.put(set_key, new Entry(set_value, set_version));    // put the new value
-                        });
+                    for (int responsibleId: resp) {
+                        if (nodes_crashed.contains(responsibleId)) continue;
+                        simulated.get(responsibleId).put(set_key, new Entry(set_value, set_version));
+                    }
                     break;
 
                     case "GET":
@@ -660,10 +664,11 @@ public class AppDebug {
 
                     // Add the data items to the node
                     Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, id->new HashMap<>());
-                    ideal_storage.entrySet().stream().filter(e->isResponsible(nodes_in_sim, join_id, e.getKey()))
-                        .forEach(e->{
+                    for (HashMap.Entry<Integer,Entry> e: ideal_storage.entrySet()) {
+                        if (isResponsible(nodes_in_sim, join_id, e.getKey())) {
                             joining_storage.put(e.getKey(), e.getValue());
-                        });
+                        }
+                    }
 
                     // Remove the data items from the nodes
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
@@ -672,7 +677,10 @@ public class AppDebug {
                     case "LEAVE":
                     int leave_id = scan.nextInt();
 
+                    // Remove the node from the ring
                     nodes_in_sim.removeIf(v->v==leave_id);
+
+                    // Move the data items of the node to their new responsible
                     for (HashMap.Entry<Integer, Entry> e: simulated.get(leave_id).entrySet()) {
                         List<Integer> responsibles = getResponsibles(nodes_in_sim, e.getKey());
                         int new_responsible = responsibles.get(responsibles.size()-1);
@@ -692,17 +700,23 @@ public class AppDebug {
                     case "RECOVERY":
                     int recovery_id = scan.nextInt();
                     nodes_crashed.remove(recovery_id);
-                    
-                    ideal_storage.keySet().stream()
-                        .filter(key->isResponsible(nodes_in_sim, recovery_id, key))
-                        .forEach(key->{
-                            Entry latest = getResponsibles(nodes_in_sim, key).stream()
-                            .filter(id->!nodes_crashed.contains(id))
-                            .map(simulated::get).filter(Objects::nonNull)
-                            .map(m->m.get(key)).filter(Objects::nonNull)
-                            .max(Comparator.comparingInt(e->e.version)).orElse(null);
-                            simulated.get(recovery_id).put(key, latest);
-                        });
+
+                    // The node gets the new data items.
+                    for (int key: ideal_storage.keySet()) {
+                        if (!isResponsible(nodes_in_sim, recovery_id, key)) continue;
+                        Entry latest = null;
+                        for (int resp_id: getResponsibles(nodes_in_sim, key)) {
+                            if (nodes_crashed.contains(resp_id)) continue;
+                            Map<Integer, Entry> s = simulated.get(resp_id);
+                            if (s==null) continue;
+                            Entry e = s.get(key);
+                            if (e==null) continue;
+                            if (latest==null || e.version > latest.version) {
+                                latest = e;
+                            }
+                        }
+                        simulated.get(recovery_id).put(key, latest);
+                    }
 
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
@@ -721,6 +735,11 @@ public class AppDebug {
         return "ALL IS GOOD IN THE WORLD";
     }
 
+    /**
+     * @param nodes_in The IDs of the nodes in the ring
+     * @param key
+     * @return Return a list of the IDs of the nodes responsible for a data key
+     */
     private List<Integer> getResponsibles(List<Integer> nodes_in, int key) {
         List<Integer> ret = new LinkedList<>();
         int i = 0;
@@ -732,10 +751,21 @@ public class AppDebug {
         return ret;
     }
 
+    /**
+     * @param nodes_in The IDs of the nodes in the ring
+     * @param id
+     * @param key
+     * @return If a node with the given ID is responsible with the key
+     */
     private boolean isResponsible(List<Integer> nodes_in, int id, int key) {
-        return (getResponsibles(nodes_in, key).contains(id));
+        return getResponsibles(nodes_in, key).contains(id);
     }
 
+    /**
+     * @param s1 Storage A
+     * @param s2 Storage B
+     * @return Wether or not the two storages are equal
+     */
     private boolean check_storage_equality(Map<Integer,Entry> s1, Map<Integer,Entry> s2) {
         if (s1 == null && s2 == null) return true;
 
@@ -751,30 +781,41 @@ public class AppDebug {
         .allMatch(key->Objects.equals(s1.get(key), s2.get(key)));
     }
 
+    /**
+     * @param s A storage
+     * @return The string representation of this storage
+     */
     private String storage_to_string(Map<Integer, Entry> s) {
         if (s==null) {
             return "NULL";
         }
-        return s.entrySet().stream()
-            .sorted(Comparator.comparingInt(e->e.getKey()))
-            .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)
-            .collect(Collectors.joining("\n"));
+        return s.entrySet().stream()                                                // Get all the entries
+            .sorted(Comparator.comparingInt(e->e.getKey()))                         // Sort them by key
+            .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)   // Convert to string "key: value, version"
+            .collect(Collectors.joining("\n"));                                     // Join them with a "\n" in between each one
     }
 
+
+    /**
+     * @param storages All the simulated storages
+     * @param nodes_in The IDs of the nodes in the ring
+     * @param nodes_crashed The IDs of the nodes that have crashed
+     * Removes from each node the data items it is not responsible for.
+     * Crashed nodes are not affected
+     */
     private void remove_excess(
         Map<Integer, Map<Integer, Entry>> storages,
         List<Integer> nodes_in,
         java.util.Set<Integer> nodes_crashed) {
-        nodes_in.stream()
-            .filter(id->!nodes_crashed.contains(id))
-            .forEach(id->{
-                Iterator<HashMap.Entry<Integer,Entry>> it = storages.get(id).entrySet().iterator();
-                while (it.hasNext()) {
-                    HashMap.Entry<Integer,Entry> e = it.next();
-                    if (!isResponsible(nodes_in, id, e.getKey())) {
-                        it.remove();
-                    }
+        for (int id: nodes_in) {
+            if (nodes_crashed.contains(id)) continue;
+            Iterator<HashMap.Entry<Integer,Entry>> it = storages.get(id).entrySet().iterator();
+            while (it.hasNext()) {
+                HashMap.Entry<Integer,Entry> e = it.next();
+                if (!isResponsible(nodes_in, id, e.getKey())) {
+                    it.remove();
                 }
-            });
+            }
+        }
     }
 }

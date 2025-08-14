@@ -124,7 +124,7 @@ public class Node extends AbstractActor {
      */
     private boolean isResponsible(int key, ActorRef node) {
         List<Peer> peers = this.getResponsibles(key);
-        return peers.stream().filter(p -> p.ref == node).findFirst().isPresent();
+        return peers.stream().anyMatch(p->p.ref==node);
     }
 
     /**
@@ -542,7 +542,7 @@ public class Node extends AbstractActor {
         // it sends the data items that have a smaller key than the joining node id and the ones with bigger key
         // if we have less tha N nodes in the network
         sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
-            .filter(k -> k<msg.joining_id || peers.size()<N)
+            // .filter(k -> k<msg.joining_id || peers.size()<N)
             .collect(Collectors.toSet())));
     }
 
@@ -651,7 +651,7 @@ public class Node extends AbstractActor {
         while (it.hasNext()) {
             Map.Entry<Integer, Entry> entry = it.next();
             List<Peer> responsibles = this.getResponsibles(entry.getKey());
-            if (!responsibles.stream().anyMatch(p -> p.id == this.id)) {
+            if (responsibles.stream().noneMatch(p -> p.id == this.id)) {
                 it.remove();
 
                 // debug
@@ -733,6 +733,7 @@ public class Node extends AbstractActor {
         this.stagedStorage.clear();
         for (Pair<Integer, Entry> dataItem: msg.items) {
             this.stagedStorage.put(dataItem.first(), dataItem.second());
+            System.out.println("STAGE " + this.id + " " + dataItem.first() + " " + dataItem.second().value + " " + dataItem.second().version);
         }
         // Leave.AckMsg() creation and send
         sendMessageDelay(getSender(), new Leave.AckMsg());
@@ -789,8 +790,12 @@ public class Node extends AbstractActor {
      * @param msg Leave.AnnounceLeavingMsg message
      */
     private void receiveAnnounceLeave(Leave.AnnounceLeavingMsg msg) {
+        if (this.crashed) return;
+
+        this.peers.removeIf(p->p.ref.equals(getSender()));
         if (msg.insert_staged_keys) {
             for (HashMap.Entry<Integer, Entry> stagedEntry: this.stagedStorage.entrySet()) {
+                if (!isResponsible(stagedEntry.getKey(), getSelf())) continue;
                 Entry old_entry = this.storage.get(stagedEntry.getKey());
                 if (old_entry == null || old_entry.version<stagedEntry.getValue().version) {
                     this.storage.put(stagedEntry.getKey(), stagedEntry.getValue());
@@ -801,7 +806,6 @@ public class Node extends AbstractActor {
             }
             stagedStorage.clear();
         }
-        this.peers.removeIf(p->p.ref.equals(getSender()));
     }
 
     /// CRASH
@@ -872,9 +876,9 @@ public class Node extends AbstractActor {
         // Ask for elements: only contact the N-1 nodes behind and the N-1 nodes ahead of yourself,
         // they're the only ones with data you may be interested in
         int myIndex = 0;
+        while (this.peers.get(myIndex).id != this.id) {myIndex++;}
         // Crash.RequestDataMsg creation
         Crash.RequestDataMsg requestDataMsg = new Crash.RequestDataMsg(this.id);
-        while (this.peers.get(myIndex).id != this.id) {myIndex++;}
         for (int i = -N+1; i< N; i++) {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();

@@ -179,7 +179,7 @@ public class Coordinator extends AbstractActor {
                 case 2:
 
                 // condition to avoid total crash failure
-                if (crashed_nodes.size()==nodes_in.size()-1) {
+                if (nodes_in_active.size()<=1) {
                     System.out.println("Can't crash only remaining node");
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
                     return;
@@ -246,7 +246,7 @@ public class Coordinator extends AbstractActor {
         // when all the operations of the current round are finished, the coordinator waits until all the remaining
         // messages are sent/received, then it starts a new round
         if (ongoing_actions<=0) {
-            try { Thread.sleep(2*App.MSG_MAX_DELAY); }catch(Exception e) { System.out.println(e.getMessage()); }
+            try { Thread.sleep(3*App.MSG_MAX_DELAY); }catch(Exception e) { System.out.println(e.getMessage()); }
             System.out.println("\\\\\\\\\\ ROUND END");
             getSelf().tell(new Debug.StartRoundMsg(), getSelf());
         }
