@@ -10,11 +10,21 @@ public class Set {
     /**
      * This class represents the message to communicate the success of the set request.
      */
-    public static class SuccessMsg implements Serializable {}
+    public static class SuccessMsg implements Serializable {
+        public final int key;
+        public SuccessMsg(int key) {
+            this.key = key;
+        }
+    }
     /**
      * This class represents the message to communicate that the set operation failed.
      */
-    public static class FailMsg implements Serializable {}
+    public static class FailMsg implements Serializable {
+        public final int key;
+        public FailMsg(int key) {
+            this.key = key;
+        }
+    }
     /**
      * This class represents the message to begin the insertion/modification of a data item in the system.
      */

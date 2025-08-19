@@ -25,7 +25,7 @@ public class Client extends AbstractActor {
      */
     private void receiveSetSuccess(Set.SuccessMsg msg) {
         //debug
-        System.out.println(this.name + " : Success SET");
+        System.out.println("SET_SUCCESS " + this.name + " " + msg.key);
 
         coordinator.tell(new Debug.SuccessMsg(Ops.SET, -1, getSender()), getSelf());
     }
@@ -37,7 +37,7 @@ public class Client extends AbstractActor {
      */
     private void receiveSetFail(Set.FailMsg msg) {
         //debug
-        System.out.println(this.name + " : Fail SET");
+        System.out.println("SET_FAIL " + this.name + " " + msg.key);
 
         coordinator.tell(new Debug.FailMsg(Ops.SET, -1, getSender()), getSelf());
     }
@@ -49,7 +49,7 @@ public class Client extends AbstractActor {
      */
     private void receiveGetSuccess(Get.SuccessMsg msg) {
         // debug
-        System.out.println(this.name + ": Success [" + msg.key + ": " + msg.value + "]");
+        System.out.println("GET_SUCCESS " + this.name + " " + msg.key + " " + msg.version + " ");
 
         coordinator.tell(new Debug.SuccessMsg(Ops.GET, -1, getSender()), getSelf());
     }
@@ -61,7 +61,7 @@ public class Client extends AbstractActor {
      */
     private void receiveGetFail(Get.FailMsg msg) {
         // debug
-        System.out.println(this.name + ": Fail ["+msg.key+"]");
+        System.out.println("GET_FAIL " + this.name + " " + msg.key);
 
         coordinator.tell(new Debug.FailMsg(Ops.GET, -1, getSender()), getSelf());
     }

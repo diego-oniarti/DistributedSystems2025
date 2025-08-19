@@ -329,7 +329,7 @@ public class Node extends AbstractActor {
 
         // FIXME: need to send the message with a delay?
         // Success message creation and send
-        transaction.client.tell(new Set.SuccessMsg(), getSelf());
+        transaction.client.tell(new Set.SuccessMsg(transaction.key), getSelf());
 
         // find the max version and increase it by one
         int maxVersion = 0;
@@ -378,7 +378,7 @@ public class Node extends AbstractActor {
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
         // Set.Fail message creation and send
         if (transaction!=null) {
-            transaction.client.tell(new Set.FailMsg(), getSelf());
+            transaction.client.tell(new Set.FailMsg(transaction.key), getSelf());
             for (Peer p: this.getResponsibles(transaction.key)) {
                 // Set.Unlock message creation and sen
                 sendMessageDelay(p.ref, new Set.UnlockMsg(transaction.key));
@@ -463,7 +463,7 @@ public class Node extends AbstractActor {
             sendMessageDelay(transaction.client, new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version));
 
             // debug
-            System.out.println("GET "+transaction.key+" "+latestEntry.value+" "+latestEntry.version);
+            System.out.println("GET "+transaction.key+" "+latestEntry.value+" "+latestEntry.version+" ");
             // debug (sequential consistency)
             System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value + " " + latestEntry.version);
         }else{
@@ -587,7 +587,7 @@ public class Node extends AbstractActor {
 
         // debug
         coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
-        System.out.println("JOIN_FAIL"+this.id);
+        System.out.println("JOIN_FAIL "+this.id);
     }
 
     /**
@@ -628,7 +628,7 @@ public class Node extends AbstractActor {
 
         // debug
         coordinator.tell(new Debug.FailMsg(Ops.JOIN, this.id, getSelf()), getSelf());
-        System.out.println("JOIN_FAIL"+this.id);
+        System.out.println("JOIN_FAIL "+this.id);
     }
 
     /**
@@ -843,7 +843,6 @@ public class Node extends AbstractActor {
      *
      * @param msg Crash.TopologyRequestMsg message
      */
-
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
         if (this.crashed) return;
         // Crash.TopologyResponseMsg creation and send

@@ -60,7 +60,7 @@ public class AppDebug {
     /** It creates and adds clients to the system informing the coordinator. */
     public void addClients() {
         for (int i = 0; i<N_CLIENT; i++){
-            String name = NameGenerator.generateRandomString(4);
+            String name = NameGenerator.getName();
             ActorRef client = this.system.actorOf(Client.props(name));
             this.clients.add(new NamedClient(name, client));
             this.coordinator.tell(new Debug.AddClientMsg(client, name), ActorRef.noSender());
@@ -567,6 +567,10 @@ public class AppDebug {
             File set = new File("seq_cons.txt");
             Scanner scan = new Scanner(set);
 
+            int version, key, node, id;
+            String name, value;
+
+
             while (scan.hasNextLine()) {
                 switch (scan.next()) {
                     case "/////":
@@ -574,12 +578,8 @@ public class AppDebug {
                     scan.next();
                     scan.next();
                     round = scan.nextInt();
-                    System.out.println("ROUND "+round);
-                    System.out.println("Nodes:");
-                    System.out.println(nodes_in_sim.stream().map(id->nodes_crashed.contains(id)?id+"x":id.toString()).collect(Collectors.joining(" ")));
-                    System.out.println("IDEAL STORAGE");
-                    System.out.println(storage_to_string(ideal_storage));
-                    System.out.println();
+                    System.out.println("---------------------------");
+                    System.out.println("STARTING ROUND "+round);
                     break;
 
                     // ROUND END
@@ -601,6 +601,21 @@ public class AppDebug {
                             return error.toString();
                         }
                     }
+
+                    System.out.println("NODES:");
+                    System.out.println(nodes_in_sim.stream().map(node_id->nodes_crashed.contains(node_id)?node_id.toString()+"(crashed)":node_id.toString()).collect(Collectors.joining(" ")));
+                    System.out.println("DATA ITEMS:");
+                    for (int data_key: ideal_storage.keySet()) {
+                        StringBuilder line = new StringBuilder();
+                        line.append(data_key).append(": [ ");
+                        for (int responsible: getResponsibles(nodes_in_sim, data_key)) {
+                            Entry entry = simulated.get(responsible).get(data_key);
+                            if (entry == null) continue;
+                            line.append(responsible).append("(").append(entry.version).append(") ");
+                        }
+                        line.append("]");
+                        System.out.println(line.toString());
+                    }
                     break;
 
                     // a data item is added when we perform a set, join, leave or recovery operation
@@ -619,6 +634,7 @@ public class AppDebug {
                     int del_key = scan.nextInt();
                     storages.get(del_id).remove(del_key);
                     break;
+
                     // SET
                     case "SET":
                     int set_key = scan.nextInt();
@@ -640,22 +656,40 @@ public class AppDebug {
                     }
                     break;
 
+                    case "SET_SUCCESS":
+                    name = scan.next();
+                    key = scan.nextInt();
+                    System.out.println(name + ": SET " + key);
+                    break;
+
+                    case "SET_FAIL":
+                    name = scan.next();
+                    key = scan.nextInt();
+                    System.out.println(name + ": SET " + key + " FAIL");
+                    break;
+
                     case "GET":
                     int get_key = scan.nextInt();
                     String get_value = scan.next();
                     int get_version = scan.nextInt();
+                    break;
 
-                    // TODO decide what to do. Can the get return older values?
+                    case "GET_SUCCESS":
+                    name = scan.next();
+                    key = scan.nextInt();
+                    version = scan.nextInt();
+                    System.out.println(name + ": GET " + key + " " +version);
+                    break;
 
-                    // Check the data we're getting is the newest
-                    // Entry latest_entry = ideal_storage.get(get_key);
-                    // if (!latest_entry.value.equals(get_value) || latest_entry.version != get_version) {
-                    //     return "Get error on key" + get_key + ".\n Expected <"+ latest_entry.value+", "+latest_entry.version+"> but got <"+get_value+", "+get_version+"> instead.";
-                    // }
+                    case "GET_FAIL":
+                    name = scan.next();
+                    key = scan.nextInt();
+                    System.out.println(name+ ": GET " + key + " FAIL");
                     break;
 
                     case "JOIN":
                     int join_id = scan.nextInt();
+                    System.out.println("JOIN " + join_id + " SUCCESS");
 
                     // Add the node in the ring
                     int index = 0;
@@ -663,7 +697,7 @@ public class AppDebug {
                     nodes_in_sim.add(index, join_id);
 
                     // Add the data items to the node
-                    Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, id->new HashMap<>());
+                    Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, jid->new HashMap<>());
                     for (HashMap.Entry<Integer,Entry> e: ideal_storage.entrySet()) {
                         if (isResponsible(nodes_in_sim, join_id, e.getKey())) {
                             joining_storage.put(e.getKey(), e.getValue());
@@ -674,8 +708,18 @@ public class AppDebug {
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
 
+                    case "JOIN_FAIL":
+                    int id_join_fail = scan.nextInt();
+                    if (id_join_fail == -1) {
+                        System.out.println("JOIN FAIL (no nodes available to join)");
+                    }else{
+                        System.out.println("JOIN " + id_join_fail + " FAIL");
+                    }
+                    break;
+
                     case "LEAVE":
                     int leave_id = scan.nextInt();
+                    System.out.println("LEAVE " + leave_id + " SUCCESS");
 
                     // Remove the node from the ring
                     nodes_in_sim.removeIf(v->v==leave_id);
@@ -692,33 +736,58 @@ public class AppDebug {
                     }
                     break;
 
+                    case "LEAVE_FAIL":
+                    id = scan.nextInt();
+                    switch (id) {
+                        case -1:
+                        System.out.println("LEAVE FAIL (can't have less than N nodes)");
+                        break;
+                        case -2:
+                        System.out.println("LEAVE FAIL (the only active node can't leave)");
+                        break;
+                        default:
+                        System.out.println("LEAVE " + id + " FAIL");
+                        break;
+                    }
+                    break;
+
                     case "CRASH":
-                    int crash_id = scan.nextInt();
-                    nodes_crashed.add(crash_id);
+                    id = scan.nextInt();
+                    System.out.println("CRASH "+id);
+                    nodes_crashed.add(id);
+                    break;
+
+                    case "CRASH_FAIL":
+                    System.out.println("CRASH FAIL (at least one active node must remain alive)");
                     break;
 
                     case "RECOVERY":
-                    int recovery_id = scan.nextInt();
-                    nodes_crashed.remove(recovery_id);
+                    id = scan.nextInt();
+                    System.out.println("RECOVERY " + id + "SUCCESS");
+                    nodes_crashed.remove(id);
 
                     // The node gets the new data items.
-                    for (int key: ideal_storage.keySet()) {
-                        if (!isResponsible(nodes_in_sim, recovery_id, key)) continue;
+                    for (int storage_key: ideal_storage.keySet()) {
+                        if (!isResponsible(nodes_in_sim, id, storage_key)) continue;
                         Entry latest = null;
-                        for (int resp_id: getResponsibles(nodes_in_sim, key)) {
+                        for (int resp_id: getResponsibles(nodes_in_sim, storage_key)) {
                             if (nodes_crashed.contains(resp_id)) continue;
                             Map<Integer, Entry> s = simulated.get(resp_id);
                             if (s==null) continue;
-                            Entry e = s.get(key);
+                            Entry e = s.get(storage_key);
                             if (e==null) continue;
                             if (latest==null || e.version > latest.version) {
                                 latest = e;
                             }
                         }
-                        simulated.get(recovery_id).put(key, latest);
+                        simulated.get(id).put(storage_key, latest);
                     }
 
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
+                    break;
+
+                    case "RECOVERY_FAIL":
+                    System.out.println("RECOVERY FAIL (no nodes are crashed)");
                     break;
 
                     default:
@@ -727,12 +796,13 @@ public class AppDebug {
                 };
             }
             scan.close();
+            System.out.println("---------------------------");
         }catch(Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
         }
 
-        return "ALL IS GOOD IN THE WORLD";
+        return "No anomalies detected";
     }
 
     /**
@@ -764,7 +834,7 @@ public class AppDebug {
     /**
      * @param s1 Storage A
      * @param s2 Storage B
-     * @return Wether or not the two storages are equal
+     * @return Whether or not the two storages are equal
      */
     private boolean check_storage_equality(Map<Integer,Entry> s1, Map<Integer,Entry> s2) {
         if (s1 == null && s2 == null) return true;
@@ -789,10 +859,10 @@ public class AppDebug {
         if (s==null) {
             return "NULL";
         }
-        return s.entrySet().stream()                                                // Get all the entries
-            .sorted(Comparator.comparingInt(e->e.getKey()))                         // Sort them by key
-            .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)   // Convert to string "key: value, version"
-            .collect(Collectors.joining("\n"));                                     // Join them with a "\n" in between each one
+        return s.entrySet().stream()                                                
+            .sorted(Comparator.comparingInt(e->e.getKey()))                         
+            .map(e->e.getKey()+": "+e.getValue().value+", "+e.getValue().version)   
+            .collect(Collectors.joining("\n"));                                     
     }
 
 
