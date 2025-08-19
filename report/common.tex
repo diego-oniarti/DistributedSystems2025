@@ -1,0 +1,88 @@
+\usepackage{wrapfig}
+\usepackage{xfrac}
+\usepackage{marginnote}
+\usepackage{ulem}
+\usepackage{cancel}
+
+\usepackage{graphicx}
+\usepackage{algorithm2e}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+% \newtcolorbox{callout}[2][]{breakable,sharp corners, skin=enhancedmiddle jigsaw,parbox=false,
+% boxrule=0mm,leftrule=2mm,boxsep=0mm,arc=0mm,outer arc=0mm,attach title to upper,
+% after title={.\ }, coltitle=violet,colback=violet!10,colframe=violet, title={#2},
+% fonttitle=\bfseries,#1}
+
+\NewTColorBox{callout}{O{violet} m}{
+  breakable,
+  sharp corners,
+  skin=enhancedmiddle jigsaw,
+  parbox=false,
+  boxrule=0mm,
+  leftrule=2mm,
+  boxsep=0mm,
+  arc=0mm,
+  outer arc=0mm,
+  attach title to upper,
+  after title={.\ },
+  coltitle=#1,
+  colback=#1!10,
+  colframe=#1,
+  title={#2},
+  fonttitle=\bfseries,
+}
+
+\newtcolorbox{warning}[2][]{breakable,sharp corners, skin=enhancedmiddle jigsaw,parbox=false,
+boxrule=0mm,leftrule=2mm,boxsep=0mm,arc=0mm,outer arc=0mm,attach title to upper,
+after title={!\ }, coltitle=red,colback=red!10,colframe=red, title={#2},
+fonttitle=\bfseries,#1}
+
+\newtcolorbox{esempio}[2][]{breakable,sharp corners, skin=enhancedmiddle jigsaw,parbox=false,
+boxrule=0mm,leftrule=2mm,boxsep=0mm,arc=0mm,outer arc=0mm,attach title to upper,
+after title={:\ }, coltitle=blue,colback=blue!10,colframe=blue, title={#2},
+fonttitle=\bfseries,#1}
+
+\newcommand{\na}[0]{\ensuremath {\overset{N}{\rightarrow}}}
+\newcommand{\rl}[3]{\inference{#1}{#2}\text{ #3}}
+\newcommand{\bop}[0]{\ensuremath\oplus}
+\newcommand{\appl}[2]{\ensuremath(#1)\ #2}
+\newcommand{\st}[3][]{\ensuremath{\displaystyle\frac{#3\hfill}{#2\hfill} \text{#1}}}
+\newcommand{\N}{\ensuremath \mathbb N}
+\newcommand{\I}{\ensuremath \mathbb I}
+\newcommand{\lam}[2]{\ensuremath{\lambda#1.#2}}
+\newcommand{\inl}[0]{\ensuremath{\ inl\ }}
+\newcommand{\inr}[0]{\ensuremath{\ inr\ }}
+\newcommand{\case}[3]{\ensuremath{\text{case}#1\ \text{of}\ \left|\begin{aligned}& #2\\ & #3\end{aligned}\right.}}
+\newcommand{\Da}[0]{\ensuremath{\Downarrow}}
+\newcommand{\while}[2]{\ensuremath{\text{while }#1\text{ do }#2\text{ end}}}
+\newcommand{\for}[3]{\ensuremath{\text{for }i=#1\text{ to }#2\text{ do }#3\text{ end}}}
+\newcommand{\mE}[0]{\ensuremath{\mathbb{E}}}
+\newcommand{\pair}[1]{\ensuremath{\langle#1\rangle}}
+\newcommand{\V}{\ensuremath{\mathcal{V}}}
+\newcommand{\cE}{\ensuremath{\mathcal{E}}}
+\newcommand{\cD}{\ensuremath{\mathcal{D}}}
+\newcommand{\cF}{\ensuremath{\mathcal{F}}}
+\newcommand{\IF}[0]{\ensuremath {\text{ if }}}
+\newcommand{\THEN}[0]{\ensuremath {\text{ then }}}
+\newcommand{\ELSE}[0]{\ensuremath {\text{ else }}}
+\newcommand{\AND}[0]{\ensuremath {\text{ and }}}
+\newcommand{\OR}[0]{\ensuremath {\text{ or }}}
+\newcommand{\unpack}[3]{\ensuremath{\text{unpack } #1 \text{ as }\langle #2 \rangle\text{ in }#3}}
+\newcommand{\pack}[2]{\ensuremath{\text{pack } \pair{#1} \text{ as } #2 }}
+\newcommand{\te}[1]{\text{#1}}
+\newcommand{\ls}[0]{\ensuremath{\leadsto^{*}}}
+\newcommand{\LET}[0]{\ensuremath{\text{ let }}}
+\newcommand{\TIN}[0]{\ensuremath{\text{ in }}}
+\newcommand{\NEW}[0]{\ensuremath{\text{ new }}}
+
+\RestyleAlgo{ruled}
+\SetKwComment{Comment}{//}{}
+\SetKwInOut{Input}{input}
+\SetKwInOut{Output}{output}
+\newcommand\commentFont[1]{\ttfamily\textcolor{blue}{#1}}
+\SetCommentSty{commentFont}
+\normalem
