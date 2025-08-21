@@ -50,9 +50,6 @@ public class Coordinator extends AbstractActor {
 
     /// CONSTRUCTOR
 
-    /**
-     * Constructor of the Coordinator class.
-     */
     public Coordinator() {
         this.rng = new Random();
         this.clients = new RngList<>(rng);
@@ -132,12 +129,10 @@ public class Coordinator extends AbstractActor {
                 if (rng.nextBoolean()) {
                     // WRITE
                     String fruit = NameGenerator.getFruit();
-                    System.out.println(("set (" + key + ": " + fruit + ")"));
                     node.ref.tell(new Set.InitiateMsg(key, fruit), client.ref);
                 } else {
                     // READ
                     node.ref.tell(new Get.InitiateMsg(key), client.ref);
-                    System.out.println(("get ("+ key +")"));
                 }
             }
         }else{ // JOIN, LEAVE, CRASH, RECOVERY
@@ -149,28 +144,23 @@ public class Coordinator extends AbstractActor {
                 case 0:
                 if (nodes_out.isEmpty()) {
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
-                    System.out.println("No nodes available to join");
                     System.out.println("JOIN_FAIL -1");
                     return;
                 }
                 Peer new_node = nodes_out.getRandom();
 
-                System.out.println("join ("+new_node.id+")");
                 new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
                 break;
 
                 // LEAVE
                 case 1:
-                System.out.println("leave (" + node.id +")");
 
                 if (nodes_in.size() == N) {
-                    System.out.println("Can't have less than N nodes");
                     System.out.println("LEAVE_FAIL -1");
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
                     return;
                 }
                 if (nodes_in_active.size()==1) {
-                    System.out.println("The only active node can't leave");
                     System.out.println("LEAVE_FAIL -2");
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
                     return;
@@ -183,27 +173,23 @@ public class Coordinator extends AbstractActor {
 
                 // condition to avoid total crash failure
                 if (nodes_in_active.size()<=1) {
-                    System.out.println("Can't crash only remaining node");
                     System.out.println("CRASH_FAIL");
                     getSelf().tell(new Debug.StartRoundMsg(), getSelf());
                     return;
                 }
 
-                System.out.println("crash (" + node.id +")");
                 node.ref.tell(new Crash.InitiateMsg(),ActorRef.noSender());
                 break;
 
                 // RECOVERY
                 case 3:
                 if (crashed_nodes.size()==0) {
-                    System.out.println("No crashed nodes to recover");
                     System.out.println("RECOVERY_FAIL");
                     getSelf().tell(new Debug.StartRoundMsg(),getSelf());
                     return;
                 }
 
                 Peer crashed_node = crashed_nodes.getRandom();
-                System.out.println("recovery (" + crashed_node.id +")");
 
                 crashed_node.ref.tell(new Crash.RecoveryMsg(node.ref), ActorRef.noSender());
                 break;

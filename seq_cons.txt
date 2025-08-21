@@ -1,111 +1,267 @@
 ///// STARTING ROUND 1
-CRASH (10)
-CRASH 10
-<<<< SUCCESS 10 CRASH
+LEAVE 40
+<<<< SUCCESS 40 LEAVE
 \\\\\ ROUND END
 ///// STARTING ROUND 2
-GET (125)
-SET (125: iaogtswa)
-etsk : Fail SET
-<<<< FAIL 0 SET
-fchj: Fail [125]
-<<<< FAIL 0 GET
+SET 51 mozqiqet 1 
+SET 16 tpgpjrdq 1 
+ADD 0 51 mozqiqet 1
+ADD 20 51 mozqiqet 1
+SET_SUCCESS nulryies 51
+<<<< SUCCESS 0 SET
+SET_SUCCESS rdpvfawb 16
+ADD 20 16 tpgpjrdq 1
+<<<< SUCCESS 20 SET
+ADD 10 51 mozqiqet 1
+ADD 0 16 tpgpjrdq 1
+ADD 30 16 tpgpjrdq 1
 \\\\\ ROUND END
 ///// STARTING ROUND 3
-JOIN (60)
-<<<< FAIL 60 JOIN
-JOIN_FAIL60
+STAGE 30 51 mozqiqet 1
+LEAVE 10
+<<<< SUCCESS 10 LEAVE
+ADD 30 51 mozqiqet 1
 \\\\\ ROUND END
 ///// STARTING ROUND 4
-SET (125: ppaomqau)
-SET (20: udqsujek)
-etsk : Fail SET
-fchj : Fail SET
-<<<< FAIL 0 SET
-<<<< FAIL 20 SET
+GET 51 mozqiqet 1 
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$b#1428438014] 20 51 mozqiqet 1
+READ Actor[akka://coordinator_test/user/$c#-270833452] 30 51 mozqiqet 1
+GET_SUCCESS nulryies 51 1 
+GET_SUCCESS rdpvfawb 51 1 
+<<<< SUCCESS 30 GET
+<<<< SUCCESS 20 GET
 \\\\\ ROUND END
 ///// STARTING ROUND 5
-SET (161: zuwlwlqv)
-SET (125: eignwzkc)
-etsk : Fail SET
-fchj : Fail SET
-<<<< FAIL 20 SET
-<<<< FAIL 0 SET
-\\\\\ ROUND END
+LEAVE_FAIL -1
 ///// STARTING ROUND 6
-GET (125)
-SET (20: zdqvegzh)
-etsk : Fail SET
-<<<< FAIL 0 SET
-fchj: Fail [125]
-<<<< FAIL 0 GET
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$e#1964819217] 10 51 mozqiqet 1
+GET 16 tpgpjrdq 1 
+READ Actor[akka://coordinator_test/user/$e#1964819217] 10 16 tpgpjrdq 1
+ADD 10 51 mozqiqet 1
+ADD 10 16 tpgpjrdq 1
+DELETE 30 51
+DELETE 10 16
+<<<< SUCCESS 10 JOIN
+JOIN 10
 \\\\\ ROUND END
 ///// STARTING ROUND 7
-GET (240)
-GET (20)
-etsk: Fail [20]
-<<<< FAIL 20 GET
-fchj: Fail [240]
-<<<< FAIL 40 GET
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$l#1146731734] 80 51 mozqiqet 1
+GET 16 tpgpjrdq 1 
+READ Actor[akka://coordinator_test/user/$l#1146731734] 80 16 tpgpjrdq 1
+ADD 80 16 tpgpjrdq 1
+ADD 80 51 mozqiqet 1
+JOIN 80
+<<<< SUCCESS 80 JOIN
+DELETE 0 16
+DELETE 20 51
 \\\\\ ROUND END
 ///// STARTING ROUND 8
-CRASH (30)
-CRASH 30
-<<<< SUCCESS 30 CRASH
+STAGE 20 51 mozqiqet 1
+LEAVE 0
+<<<< SUCCESS 0 LEAVE
+ADD 20 51 mozqiqet 1
 \\\\\ ROUND END
 ///// STARTING ROUND 9
-RECOVERY (10)
-<<<< SUCCESS 10 RECOVER
-RECOVERY 10
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$m#476735516] 90 51 mozqiqet 1
+ADD 90 51 mozqiqet 1
+JOIN 90
+<<<< SUCCESS 90 JOIN
+DELETE 20 51
 \\\\\ ROUND END
 ///// STARTING ROUND 10
-GET (125)
-SET (161: bykupnfy)
-etsk : Fail SET
-<<<< FAIL 40 SET
-fchj: Fail [125]
-<<<< FAIL 40 GET
-\\\\\ ROUND END
+RECOVERY_FAIL
 ///// STARTING ROUND 11
-RECOVERY (30)
-RECOVERY 30
-<<<< SUCCESS 30 RECOVER
+GET_FAIL rdpvfawb 59
+<<<< FAIL 80 GET
+GET_FAIL nulryies 29
+<<<< FAIL 80 GET
 \\\\\ ROUND END
 ///// STARTING ROUND 12
-SET (240: yavpxghi)
-GET (240)
-fchj : Fail SET
-<<<< FAIL 0 SET
-etsk: Fail [240]
-<<<< FAIL 20 GET
+GET 16 tpgpjrdq 1 
+READ Actor[akka://coordinator_test/user/$c#-270833452] 90 16 tpgpjrdq 1
+SET 16 mkojnciu 2 
+ADD 30 16 mkojnciu 2
+ADD 80 16 mkojnciu 2
+SET_SUCCESS rdpvfawb 16
+GET_SUCCESS nulryies 16 1 
+<<<< SUCCESS 90 SET
+<<<< SUCCESS 90 GET
+ADD 20 16 mkojnciu 2
 \\\\\ ROUND END
 ///// STARTING ROUND 13
-LEAVE (20)
-LEAVE 20
-<<<< SUCCESS 20 LEAVE
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$c#-270833452] 20 51 mozqiqet 1
+SET 59 wmgoljoz 1 
+GET_SUCCESS nulryies 51 1 
+<<<< SUCCESS 20 GET
+ADD 10 59 wmgoljoz 1
+SET_SUCCESS rdpvfawb 59
+<<<< SUCCESS 10 SET
+ADD 80 59 wmgoljoz 1
+ADD 90 59 wmgoljoz 1
 \\\\\ ROUND END
 ///// STARTING ROUND 14
-No crashed nodes to recover
+GET 16 mkojnciu 2 
+READ Actor[akka://coordinator_test/user/$b#1428438014] 30 16 mkojnciu 2
+SET 59 uamxapzq 2 
+GET_SUCCESS rdpvfawb 16 2 
+<<<< SUCCESS 30 GET
+ADD 10 59 uamxapzq 2
+ADD 80 59 uamxapzq 2
+SET_SUCCESS nulryies 59
+<<<< SUCCESS 20 SET
+ADD 90 59 uamxapzq 2
+\\\\\ ROUND END
 ///// STARTING ROUND 15
-No crashed nodes to recover
+SET 29 svcguwhx 1 
+ADD 80 29 svcguwhx 1
+ADD 90 29 svcguwhx 1
+SET_SUCCESS nulryies 29
+GET_FAIL rdpvfawb 29
+<<<< SUCCESS 80 SET
+<<<< FAIL 80 GET
+ADD 30 29 svcguwhx 1
+\\\\\ ROUND END
 ///// STARTING ROUND 16
-LEAVE (30)
-LEAVE 30
-<<<< SUCCESS 30 LEAVE
+SET 59 fjrzspgo 3 
+GET 16 mkojnciu 2 
+READ Actor[akka://coordinator_test/user/$b#1428438014] 80 16 mkojnciu 2
+ADD 90 59 fjrzspgo 3
+ADD 80 59 fjrzspgo 3
+GET_SUCCESS rdpvfawb 16 2 
+ADD 10 59 fjrzspgo 3
+<<<< SUCCESS 80 GET
+SET_SUCCESS nulryies 59
+<<<< SUCCESS 30 SET
 \\\\\ ROUND END
 ///// STARTING ROUND 17
-CRASH (10)
-CRASH 10
-<<<< SUCCESS 10 CRASH
+GET 59 fjrzspgo 3 
+READ Actor[akka://coordinator_test/user/$i#412072172] 50 59 fjrzspgo 3
+ADD 50 59 fjrzspgo 3
+GET 29 svcguwhx 1 
+READ Actor[akka://coordinator_test/user/$i#412072172] 50 29 svcguwhx 1
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$i#412072172] 50 51 mozqiqet 1
+GET 16 mkojnciu 2 
+READ Actor[akka://coordinator_test/user/$i#412072172] 50 16 mkojnciu 2
+ADD 50 29 svcguwhx 1
+ADD 50 51 mozqiqet 1
+ADD 50 16 mkojnciu 2
+DELETE 90 29
+DELETE 50 51
+DELETE 50 59
+JOIN 50
+<<<< SUCCESS 50 JOIN
+DELETE 80 16
 \\\\\ ROUND END
 ///// STARTING ROUND 18
-GET (240)
-GET (240)
-fchj: Fail [240]
-<<<< FAIL 0 GET
-etsk: Fail [240]
-<<<< FAIL 40 GET
+CRASH 50
+<<<< SUCCESS 50 CRASH
 \\\\\ ROUND END
 ///// STARTING ROUND 19
-LEAVE (40)
-Can't have less than N nodes
+STAGE 20 51 mozqiqet 1
+STAGE 20 59 fjrzspgo 3
+LEAVE 90
+<<<< SUCCESS 90 LEAVE
+ADD 20 51 mozqiqet 1
+ADD 20 59 fjrzspgo 3
+\\\\\ ROUND END
+///// STARTING ROUND 20
+GET 59 fjrzspgo 3 
+READ Actor[akka://coordinator_test/user/$d#-1766784301] 0 59 fjrzspgo 3
+GET 51 mozqiqet 1 
+READ Actor[akka://coordinator_test/user/$d#-1766784301] 0 51 mozqiqet 1
+ADD 0 59 fjrzspgo 3
+ADD 0 51 mozqiqet 1
+JOIN 0
+<<<< SUCCESS 0 JOIN
+DELETE 20 51
+DELETE 20 59
+\\\\\ ROUND END
+///// STARTING ROUND 21
+STAGE 80 16 mkojnciu 2
+LEAVE 20
+<<<< SUCCESS 20 LEAVE
+ADD 80 16 mkojnciu 2
+\\\\\ ROUND END
+///// STARTING ROUND 22
+SET_SUCCESS rdpvfawb 51
+SET 51 bkktevbk 2 
+ADD 80 51 bkktevbk 2
+<<<< SUCCESS 30 SET
+SET 29 dgjdzgnr 2 
+ADD 10 51 bkktevbk 2
+ADD 0 51 bkktevbk 2
+ADD 80 29 dgjdzgnr 2
+SET_SUCCESS nulryies 29
+<<<< SUCCESS 80 SET
+ADD 30 29 dgjdzgnr 2
+\\\\\ ROUND END
+///// STARTING ROUND 23
+GET 59 fjrzspgo 3 
+SET 51 pouhtbsy 3 
+READ Actor[akka://coordinator_test/user/$c#-270833452] 80 59 fjrzspgo 3
+ADD 80 51 pouhtbsy 3
+ADD 10 51 pouhtbsy 3
+GET_SUCCESS nulryies 59 3 
+<<<< SUCCESS 80 GET
+SET_SUCCESS rdpvfawb 51
+<<<< SUCCESS 0 SET
+ADD 0 51 pouhtbsy 3
+\\\\\ ROUND END
+///// STARTING ROUND 24
+SET_FAIL rdpvfawb 16
+<<<< FAIL 30 SET
+SET_FAIL nulryies 16
+<<<< FAIL 80 SET
+\\\\\ ROUND END
+///// STARTING ROUND 25
+GET 59 fjrzspgo 3 
+READ Actor[akka://coordinator_test/user/$c#-270833452] 80 59 fjrzspgo 3
+GET_SUCCESS nulryies 59 3 
+<<<< SUCCESS 80 GET
+SET 29 lihgrgor 3 
+SET_SUCCESS rdpvfawb 29
+ADD 80 29 lihgrgor 3
+<<<< SUCCESS 10 SET
+ADD 30 29 lihgrgor 3
+\\\\\ ROUND END
+///// STARTING ROUND 26
+STAGE 0 16 mkojnciu 2
+STAGE 0 29 lihgrgor 3
+LEAVE 30
+<<<< SUCCESS 30 LEAVE
+ADD 0 16 mkojnciu 2
+ADD 0 29 lihgrgor 3
+\\\\\ ROUND END
+///// STARTING ROUND 27
+SET 51 rmiwkhdt 4 
+SET_SUCCESS rdpvfawb 51
+<<<< SUCCESS 80 SET
+ADD 0 51 rmiwkhdt 4
+ADD 80 51 rmiwkhdt 4
+ADD 10 51 rmiwkhdt 4
+GET_FAIL nulryies 51
+<<<< FAIL 10 GET
+\\\\\ ROUND END
+///// STARTING ROUND 28
+<<<< SUCCESS 50 RECOVER
+RECOVERY 50
+ADD 50 29 lihgrgor 3
+\\\\\ ROUND END
+///// STARTING ROUND 29
+SET 16 yetyoadk 3 
+GET 59 fjrzspgo 3 
+READ Actor[akka://coordinator_test/user/$c#-270833452] 10 59 fjrzspgo 3
+ADD 80 16 yetyoadk 3
+ADD 0 16 yetyoadk 3
+ADD 50 16 yetyoadk 3
+SET_SUCCESS rdpvfawb 16
+<<<< SUCCESS 10 SET
+GET_SUCCESS nulryies 59 3 
+<<<< SUCCESS 10 GET
+\\\\\ ROUND END

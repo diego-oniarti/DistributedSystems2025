@@ -22,25 +22,53 @@
 % - testing (file dump, and simulation)
 \subsection{System Layout}
 The main classes of our system are the Nodes, the Clients, and the Coordinator.\\
-The nodes and clients serve their roles as described in the project's assignment, while the coordinator is tasked to issue commands and enforce the project's assumptions.
+The nodes and clients serve their roles as described in the project's assignment,
+ while the coordinator is tasked to issue commands and enforce the project's assumptions.
 
-To keep track of ongoing operations we implemented a ``rounds system" in which the coordinator issues a group of operations, waits for their conclusion, and repeats the process.
+To keep track of ongoing operations we implemented a ``rounds system" in which 
+the coordinator issues a group of operations, waits for their conclusion, and 
+repeats the process.
 
 \subsection{Messages}
-The system's components communicate through messages, divided into two main categories: control messages and service messages.
+The system's components communicate through messages, divided into two main 
+categories: control messages and service messages.
 
-Control messages are exchanged instantaneously between the coordinator and the other actors to issue commands (requests and management operations) and to get their results. With this information the coordinator can guarantee that nodes join and leave, crash and recover one at a time, and only when there are no ongoing operations.
+Control messages are exchanged instantaneously between the coordinator and the 
+other actors to issue commands (requests and management operations) and to get 
+their results. With this information the coordinator can guarantee that nodes 
+join and leave, crash and recover one at a time, and only when there are no 
+ongoing operations.
 
-Service messages implement the actual functionalities of the system. They simulate the messages that would be exchanged in a real world scenario, hence they are only sent between nodes and clients (not the coordinator). To make their behaviour more realistic they are sent with a random delay, mimicking the propagation delay of packets.\footnote{The random delays \textit{could} break FIFO, but we decided to ignore this as per the project's given assumptions}
+Service messages implement the actual functionalities of the system. They 
+simulate the messages that would be exchanged in a real world scenario, 
+hence they are only sent between nodes and clients (not the coordinator). 
+To make their behaviour more realistic they are sent with a random delay, 
+mimicking the propagation delay of packets.\footnote{The random delays 
+\textit{could} break FIFO, but we decided to ignore this as per the project's 
+given assumptions}
 
-In \textbf{Fig.\ref{fig:messages}} we illustrate the all the messages of the system. To reduce the number of messages we adopted the following strategies:
+In \textbf{Fig.\ref{fig:messages}} we illustrate all the messages of the 
+system. To reduce the number of messages we adopted the following strategies:
 \begin{enumerate}
-    \item \textbf{Get} and \textbf{Set}: only the nodes responsible for the interested data item are contacted.
-    \item \textbf{Join:} the system only asks the joining node's clockwise neighbor for the data items that it is going to be responsible for, avoiding a number of unnecessary message exchanges.\\
-        The latest version of these data items is then obtained through the Get operation. As stated above, this operation already uses the lest amount of required messages.
-    \item \textbf{Leave:} the leaving node must transfer its data items to their new responsible nodes. If multiple data items are sent to the same node, they are bundled in the same message.
-    \item \textbf{Crash:} When a node crashes it sends no messages to the other nodes, only setting an internal flag. This operation is triggered by a control message.
-    \item \textbf{Recovery:} when a node enters recovery it sends a data request to the other nodes to get updated on the status of the system. These messages are only sent to the $N-1$\footnote{N denotes the system's replication factor} nodes in front and the $N-1$ nodes behind the recovering one. Only these nodes may have the desired data items.
+    \item \textbf{Get} and \textbf{Set}: only the nodes responsible for the 
+    interested data item are contacted.
+    \item \textbf{Join:} the system only asks the joining node's clockwise 
+    neighbor for the data items that it is going to be responsible for, 
+    avoiding a number of unnecessary message exchanges.\\
+        The latest version of these data items is then obtained through the 
+        Get operation. As stated above, reads already uses the least 
+        amount of required messages.
+    \item \textbf{Leave:} the leaving node must transfer its data items to their 
+    new responsible nodes. If multiple data items are sent to the same node, 
+    they are bundled in the same message.
+    \item \textbf{Crash:} When a node crashes it sends no messages to the 
+    other nodes, only setting an internal flag. This operation is triggered 
+    by a control message.
+    \item \textbf{Recovery:} when a node enters recovery, it sends a data 
+    request to the other nodes to get updated on the status of the system. 
+    These messages are only sent to the $N-1$\footnote{N denotes the system's 
+    replication factor} nodes in front and the $N-1$ nodes behind the recovering 
+    one. Only these nodes may have the desired data items.
 \end{enumerate}
 
 \begin{figure}
@@ -51,21 +79,29 @@ In \textbf{Fig.\ref{fig:messages}} we illustrate the all the messages of the sys
 \end{figure}
 
 \subsection{Round system}
-There are two types of rounds: ones in which the system resolves client requests (read and write), and ones in which a node performs management operations (join/leave, crash/recover).
-After sending the initiation message for each operation the coordinator waits for their results and an additional time delay to let the system settle. Only then it will start a new round.
+There are two types of rounds: ones in which the system resolves client 
+requests (read and write), and ones in which a node performs management 
+operations (join/leave, crash/recover).
+After sending the initiation message for each operation the coordinator waits 
+for their results and an additional time delay to let the system settle. 
+Only then it will start a new round.
 % mention how the result of the operations is used to keep track of which nodes are in the loop and which one left / joined etc
 
 \subsection{Testing though Simulation}
-We perform two kinds of test on the system, both performed by the AppDebug class. Both tests rely on a log file containing a sequence of events in their global order.
+We perform two kinds of test on the system, both performed by the AppDebug class. 
+Both tests rely on a log file containing a sequence of events in their global order.
 
 The events stored in the file are:
 \begin{itemize}
-    \item node storage modification: whenever data items are written or deleted from a node's storage, an entry describing the change is written to the file.
-    \item operations: whenever an operation succeeds or fails, it is registered to the file as a single atomic entry.
+    \item node storage modification: whenever data items are written or deleted 
+    from a node's storage, an entry describing the change is written to the file.
+    \item operations: whenever an operation succeeds or fails, it is registered 
+    to the file as a single atomic entry.
 \end{itemize}
 
 \paragraph {Sequential Consistency}
-A validator reads the log file and keeps track of all the successful read operations, storing each one as a node in a graph
+A validator reads the log file and keeps track of all the successful read 
+operations, storing each one as a node in a graph
 
 % \begin{itemize}
 %     \item Sequential consistency: if there exists a topological order among read operations on the data item, the system enforces data-centric sequential consistency. Client-centric sequential consistency in guaranteed by the quorum instead.

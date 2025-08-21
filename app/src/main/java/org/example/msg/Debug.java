@@ -11,18 +11,14 @@ import org.example.Node.Peer;
  * The class contains all the messages sent for debugging purposes.
  */
 public class Debug {
-    /**
-     * This enum represents the type of operation the round is performing.
-     */
+    /** This enum represents the type of operation the round is performing. */
     public static enum Ops {
         GET, SET,
         JOIN, LEAVE,
         CRASH, RECOVER
     }
 
-    /**
-     * This class represents the message to add a node in the system.
-     */
+    /** This class represents the message to add a node in the system. */
     public static class AddNodeMsg implements Serializable {
         /** ActorRef of the node. */
         public final ActorRef ref;
@@ -35,9 +31,7 @@ public class Debug {
         }
     }
 
-    /**
-     * This class represents the message to send the nodes in and out to the coordinator.
-     */
+    /** This class represents the message to send the nodes in and out to the coordinator. */
     public static class AddNodesMsg implements Serializable {
         /** List of nodes in. */
         public final LinkedList<Peer> peers_in;
@@ -50,9 +44,7 @@ public class Debug {
         }
     }
 
-    /**
-     * This class represents the message to add a client to the system.
-     */
+    /** This class represents the message to add a client to the system. */
     public static class AddClientMsg implements Serializable{
         /** ActorRef of the client. */
         public final ActorRef ref;
@@ -65,14 +57,10 @@ public class Debug {
         }
     }
 
-    /**
-     * This class represents the message to start a simulation round.
-     */
+    /** This class represents the message to start a simulation round. */
     public static class StartRoundMsg implements Serializable{ }
 
-    /**
-     * This class represents the message to announce the coordinator to the nodes.
-     */
+    /** This class represents the message to announce the coordinator to the nodes. */
     public static class AnnounceCoordinator implements Serializable{
         /** ActorRef of the coordinator. */
         public final ActorRef coordinator;
@@ -82,9 +70,7 @@ public class Debug {
         }
     }
 
-    /**
-     * This class represents the message to inform the coordinator about the fail of the current round operation.
-     */
+    /** This class represents the message to inform the coordinator about the fail of the current round operation. */
     public static class FailMsg {
         /** Operation type. */
         public final Ops op;
@@ -100,9 +86,7 @@ public class Debug {
         }
     }
 
-    /**
-     * This class represents the message to inform the coordinator about the success of the current round operation.
-     */
+    /** This class represents the message to inform the coordinator about the success of the current round operation. */
     public static class SuccessMsg {
         /** Operation type. */
         public final Ops op;

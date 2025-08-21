@@ -20,26 +20,14 @@ public class App {
 
         AppDebug d = new AppDebug("coordinator_test");
 
-        // test about set operations in a fixed network
-        // d.setFixedTest();
-        // String e = d.check_set_file();
-        // System.out.println(e);
-
-        // test about set and get operations (seq consistency check) in a fixed network
-        // d.sequentialConsistencyTest();
-        // String e = d.check_consistency_file();
-        // System.out.println(e);
-
-        // test about set in a dynamic network (join and leave operations)
-        // d.dynamicTest("set_dynamic.txt");
-        // String e_dynamic = d.check_dynamic_set_file();
-        // System.out.println(e_dynamic);
-
-        // test about set and get operations (seq consistency check) in a dynamic network
+        // simulation
         d.dynamicTest("seq_cons.txt");
+
+        // check seq consistency
         String e_cons = d.check_consistency_file();
         System.out.println(e_cons);
 
+        // check data items assignment and prints simulation execution
         String e_sim = d.check_round_sim();
         System.out.println(e_sim);
     }

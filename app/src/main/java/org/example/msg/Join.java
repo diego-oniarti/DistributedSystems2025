@@ -11,9 +11,7 @@ import java.util.Set;
  * The class represents the messages exchanged during a join operation.
  */
 public class Join {
-    /**
-     * This class represents the message to begin a join operation.
-     */
+    /** This class represents the message to begin a join operation. */
     public static class InitiateMsg implements Serializable {
         /** ActorRef of the bootstrapping peer. */
         public final ActorRef bootstrapping_peer;
@@ -23,14 +21,10 @@ public class Join {
         }
     }
 
-    /**
-     * This class represents the message to request the network topology to the bootstrapping peer.
-     */
+    /** This class represents the message to request the network topology to the bootstrapping peer. */
     public static class TopologyRequestMsg implements Serializable { }
 
-    /**
-     * This class represents the message to send the network topology to the joining node.
-     */
+    /** This class represents the message to send the network topology to the joining node. */
     public static class TopologyResponseMsg implements Serializable {
         /** Network topology. */
         public final List<Node.Peer> peers;
@@ -54,9 +48,7 @@ public class Join {
         }
     }
 
-    /**
-     * This class represents the message to give the keys of data items to the joining node will be responsible for.
-     */
+    /** This class represents the message to give the keys of data items to the joining node will be responsible for. */
     public static class ResponsibilityResponseMsg implements Serializable {
         /** Set ok keys the joining node will be responsible for. */
         public final Set<Integer> keys;
@@ -66,9 +58,7 @@ public class Join {
         }
     }
 
-    /**
-     * This class represents the message to announces the joining node to other nodes.
-     */
+    /** This class represents the message to announces the joining node to other nodes. */
     public static class AnnouncePresenceMsg implements Serializable {
         /** Id of the joining node. */
         public final int id;
@@ -78,8 +68,6 @@ public class Join {
         }
     }
 
-    /**
-     * This class represents the message to stop the join operation execution because it failed.
-     */
+    /** This class represents the message to stop the join operation execution because it failed. */
     public static class TimeoutMsg implements Serializable {}
 }

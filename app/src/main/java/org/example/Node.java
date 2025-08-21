@@ -87,16 +87,12 @@ public class Node extends AbstractActor {
         );
     }
 
-    /**
-     * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration
-     */
+    /** Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration. */
     private void sendMessageDelay(ActorRef target, Serializable msg, ActorRef sender) {
         sendMessageDelay(target, msg, sender, MSG_MAX_DELAY);
     }
 
-    /**
-     * Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration and sender
-     */
+    /** Overload for {@link #sendMessageDelay(ActorRef, Serializable, ActorRef, int)} with default duration and sender. */
     private void sendMessageDelay(ActorRef target, Serializable msg) {
         sendMessageDelay(target, msg, getSelf(), MSG_MAX_DELAY);
     }
@@ -166,23 +162,20 @@ public class Node extends AbstractActor {
 
     /// CLASSES
 
-    /**
-     * The class represents a peer in the network.
-     */
+    /** The class represents a peer in the network. */
     public static class Peer {
         /** ID of the peer. */
         public int id;
         /** Actor reference of the peer. */
         public ActorRef ref;
+
         public Peer (int id, ActorRef ref) {
             this.id = id;
             this.ref = ref;
         }
     }
 
-    /**
-     * The class represents a set request (adding or updating a data item).
-     */
+    /** The class represents a set request (adding or updating a data item). */
     private class SetTransaction {
         /** Key of data item. */
         public final int key;
@@ -193,13 +186,6 @@ public class Node extends AbstractActor {
         /** Actor reference of the client that made the set request. */
         public final ActorRef client;
 
-        /**
-         * Constructor of class SetTransaction.
-         *
-         * @param key key of the data item
-         * @param value value of the data item
-         * @param client client that made the request
-         */
         public SetTransaction(int key, String value, ActorRef client) {
             this.key = key;
             this.value = value;
@@ -208,9 +194,7 @@ public class Node extends AbstractActor {
         }
     }
 
-    /**
-     * The class represents a get request (read a data item).
-     */
+    /** The class represents a get request (read a data item). */
     private class GetTransaction {
         /** Key of the data item. */
         public final int key;
@@ -219,12 +203,6 @@ public class Node extends AbstractActor {
         /** Actor reference of the client that made the get request. */
         public final ActorRef client;
 
-        /**
-         * Constructor of class GetTransaction.
-         *
-         * @param key key of the data item
-         * @param client Actor reference of the client that made the request
-         */
         public GetTransaction(int key, ActorRef client) {
             this.key = key;
             this.replies = new LinkedList<>();
@@ -234,11 +212,6 @@ public class Node extends AbstractActor {
 
     /// CONSTRUCTOR
 
-    /**
-     * Class Node constructor.
-     *
-     * @param id ID of the node
-     */
     public Node (int id) {
         this.id = id;
         this.storage = new HashMap<>();
@@ -278,14 +251,11 @@ public class Node extends AbstractActor {
 
         int old_counter = this.id_counter++;
 
-        // VersionRequest message creation
         this.setTransactions.put(old_counter, new SetTransaction(msg.key, msg.value, getSender()));
         Set.VersionRequestMsg reqMsg = new Set.VersionRequestMsg(msg.key, old_counter);
 
-        // TimeoutMsg creation and send
         setTimeout(new Set.TimeoutMsg(old_counter));
 
-        // VersionRequestMsg send
         for (Peer peer: responsibles) {
             sendMessageDelay(peer.ref, reqMsg);
         }
@@ -306,7 +276,6 @@ public class Node extends AbstractActor {
 
         Entry entry = this.storage.get(msg.key);
         int version = entry==null?-1:entry.version;
-        // VersionResponse message creation and send
         sendMessageDelay(getSender(), new Set.VersionResponseMsg(version, msg.transacition_id));
     }
 
@@ -320,18 +289,16 @@ public class Node extends AbstractActor {
         if (this.crashed) return;
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
 
-        // select the right transaction
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
-        // check the quorum
+
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
         // FIXME: need to send the message with a delay?
-        // Success message creation and send
-        transaction.client.tell(new Set.SuccessMsg(transaction.key), getSelf());
+        // transaction.client.tell(new Set.SuccessMsg(transaction.key), getSelf());
+        sendMessageDelay(transaction.client, new Set.SuccessMsg(transaction.key));
 
-        // find the max version and increase it by one
         int maxVersion = 0;
         for (int response: transaction.replies) {
             if (response > maxVersion) {
@@ -342,9 +309,8 @@ public class Node extends AbstractActor {
 
         List<Peer> responsibles = this.getResponsibles(transaction.key);
 
-        // UpdateEntry message creation (send the data item with the updated version to all the responsibles for it)
         Set.UpdateEntryMsg updateMsg = new Set.UpdateEntryMsg(transaction.key, new Entry(transaction.value, maxVersion));
-        // UpdateEntry message send
+
         for (Peer responsible: responsibles) {
             sendMessageDelay(responsible.ref, updateMsg);
         }
@@ -376,11 +342,11 @@ public class Node extends AbstractActor {
     private void receiveSetTimeout(Set.TimeoutMsg msg) {
         if (this.crashed) return;
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
-        // Set.Fail message creation and send
+
         if (transaction!=null) {
-            transaction.client.tell(new Set.FailMsg(transaction.key), getSelf());
+            //transaction.client.tell(new Set.FailMsg(transaction.key), getSelf());
+            sendMessageDelay(transaction.client, new Set.FailMsg(transaction.key));
             for (Peer p: this.getResponsibles(transaction.key)) {
-                // Set.Unlock message creation and sen
                 sendMessageDelay(p.ref, new Set.UnlockMsg(transaction.key));
             }
         }
@@ -413,13 +379,10 @@ public class Node extends AbstractActor {
 
         int old_counter = this.id_counter++;
         this.getTransactions.put(old_counter, new GetTransaction(msg.key, getSender()));
-        // EntryRequest message creation
         Get.EntryRequestMsg reqMsg = new Get.EntryRequestMsg(msg.key, old_counter);
 
-        // Timeout message creation and send
         setTimeout(new Get.TimeoutMsg(old_counter));
 
-        // EntryRequest message send
         for (Peer peer: responsibles) {
             sendMessageDelay(peer.ref, reqMsg);
         }
@@ -437,7 +400,7 @@ public class Node extends AbstractActor {
         if (this.ongoing_set_keys.contains(msg.key)) return;
 
         Entry entry = this.storage.get(msg.key);
-        // EntryResponse message creation and send
+
         sendMessageDelay(getSender(), new Get.EntryResponseMsg(entry, msg.transacition_id));
     }
 
@@ -452,14 +415,13 @@ public class Node extends AbstractActor {
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
         GetTransaction transaction = this.getTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.entry);
-        // quorum check
+
         if (transaction.replies.size() < App.R) { return; }
         this.getTransactions.remove(msg.transacition_id);
         // find the most updated data item
         Entry latestEntry = transaction.replies.stream().filter(Objects::nonNull).max(Comparator.comparingInt(e->e.version)).orElse(null);
 
         if (latestEntry!=null){
-            // Success message creation and send
             sendMessageDelay(transaction.client, new Get.SuccessMsg(transaction.key, latestEntry.value, latestEntry.version));
 
             // debug
@@ -467,8 +429,8 @@ public class Node extends AbstractActor {
             // debug (sequential consistency)
             System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value + " " + latestEntry.version);
         }else{
-            // Fail message creation and send
-            transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
+            sendMessageDelay(transaction.client, new Get.FailMsg(transaction.key));
+            //transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
     }
 
@@ -480,7 +442,7 @@ public class Node extends AbstractActor {
     public void receiveGetTimeout(Get.TimeoutMsg msg) {
         if (this.crashed) return;
         GetTransaction transaction = this.getTransactions.remove(msg.transaction_id);
-        // Get.Fail message creation and send
+
         if (transaction!=null) {
             sendMessageDelay(transaction.client, new Get.FailMsg(transaction.key));
         }
@@ -495,7 +457,7 @@ public class Node extends AbstractActor {
      */
     private void receiveJoinInitiate(Join.InitiateMsg msg){
         if (this.crashed) {return;}
-        // Join.TopologyRequestMsg creation and send
+
         sendMessageDelay(msg.bootstrapping_peer, new Join.TopologyRequestMsg());
     }
 
@@ -506,7 +468,7 @@ public class Node extends AbstractActor {
      */
     private void receiveTopologyRequest (Join.TopologyRequestMsg msg){
         if (this.crashed) {return;}
-        // Join.TopologyResponseMsg creation and send
+
         sendMessageDelay(getSender(), new Join.TopologyResponseMsg(this.peers));
     }
 
@@ -523,10 +485,8 @@ public class Node extends AbstractActor {
         int myIndex = 0;
         while (myIndex < this.peers.size() && this.peers.get(myIndex).id < this.id) {myIndex++;}
 
-        // Join.ResponsibilityRequestMsg creation and send
         sendMessageDelay(this.peers.get(myIndex%this.peers.size()).ref, new Join.ResponsibilityRequestMsg(this.id));
 
-        // TimeoutMsg creation and send
         setTimeout(new Join.TimeoutMsg());
     }
 
@@ -536,9 +496,9 @@ public class Node extends AbstractActor {
      *
      * @param msg Join.ResponsibilityRequestMsg message
      */
+    // TODO: ask Diego about comment link in stream
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg){
         if (this.crashed) {return;}
-        // Join.ResponsibilityResponseMsg creation and send
         // it sends the data items that have a smaller key than the joining node id and the ones with bigger key
         // if we have less tha N nodes in the network
         sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
@@ -562,7 +522,6 @@ public class Node extends AbstractActor {
                 this.peers.stream().map(p->p.ref),
                 Stream.of(getSelf())
             ) .forEach(ref -> {
-                    // Join.AnnouncePresenceMsg creation and send
                     sendMessageDelay(ref, new Join.AnnouncePresenceMsg(this.id));
                 });
             return;
@@ -571,7 +530,6 @@ public class Node extends AbstractActor {
         this.joinKeyCount = msg.keys.size();
         this.join_failed = false;
         for (int k : msg.keys){
-            // Get.InitiateMsg creation and send
             sendMessageDelay(getSelf(), new Get.InitiateMsg(k));
         }
     }
@@ -611,7 +569,6 @@ public class Node extends AbstractActor {
                 this.peers.stream().map(p->p.ref),
                 Stream.of(getSelf())
             ).forEach(ref -> {
-                    // Join.AnnouncePresenceMsg creation and send
                     sendMessageDelay(ref, new Join.AnnouncePresenceMsg(this.id));
                 });
         }
@@ -661,7 +618,6 @@ public class Node extends AbstractActor {
 
         if (msg.id==this.id){
             // debug
-            System.out.println("JOINING "+this.id);
             coordinator.tell(new Debug.SuccessMsg(Ops.JOIN, this.id, getSelf()), getSelf());
             System.out.println("JOIN "+this.id);
         }
@@ -682,10 +638,9 @@ public class Node extends AbstractActor {
         while (this.peers.get(myIndex).id!=this.id) myIndex++;
         this.peers.remove(myIndex);
 
-        // Early exit; it the leaving node doesn't have data itms it is responsible for it can simply leave the
+        // Early exit; it the leaving node doesn't have data items it is responsible for it can simply leave the
         // network
         if (this.storage.isEmpty()) {
-            // AnnounceLeavingMsg creation and send
             AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(false);
             for (Peer p: peers) {
                 sendMessageDelay(p.ref, leavingAnnouncement);
@@ -714,10 +669,8 @@ public class Node extends AbstractActor {
         this.is_leaving = true;
         this.leavingCount = buckets.size();
 
-        // Leave.TimeoutMsg creation and send
         setTimeout(new Leave.TimeoutMsg());
         for (HashMap.Entry<Peer, List<Pair<Integer,Entry>>> e: buckets.entrySet()) {
-            // Leave.TransferItemsMsg creation and send
             sendMessageDelay(e.getKey().ref, new Leave.TransferItemsMsg(e.getValue()));
         }
     }
@@ -735,7 +688,6 @@ public class Node extends AbstractActor {
             this.stagedStorage.put(dataItem.first(), dataItem.second());
             System.out.println("STAGE " + this.id + " " + dataItem.first() + " " + dataItem.second().value + " " + dataItem.second().version);
         }
-        // Leave.AckMsg() creation and send
         sendMessageDelay(getSender(), new Leave.AckMsg());
     }
 
@@ -749,10 +701,9 @@ public class Node extends AbstractActor {
         this.leavingCount--;
         if (this.is_leaving && this.leavingCount==0) {
             this.is_leaving = false;
-            // AnnounceLeavingMsg creation
+
             AnnounceLeavingMsg leavingAnnouncement = new AnnounceLeavingMsg(true);
             for (Peer p: peers) {
-                // AnnounceLeavingMsg send
                 sendMessageDelay(p.ref, leavingAnnouncement);
             }
 
@@ -834,7 +785,7 @@ public class Node extends AbstractActor {
      */
     private void receiveRecovery(Crash.RecoveryMsg msg) {
         this.crashed=false;
-        // Crash.TopologyRequestMsg creation and send
+
         sendMessageDelay(msg.helper, new Crash.TopologyRequestMsg());
     }
 
@@ -845,7 +796,7 @@ public class Node extends AbstractActor {
      */
     private void receiveTopologyRequest(Crash.TopologyRequestMsg msg) {
         if (this.crashed) return;
-        // Crash.TopologyResponseMsg creation and send
+
         sendMessageDelay(getSender(), new Crash.TopologyResponseMsg(this.peers));
     }
 
@@ -876,12 +827,12 @@ public class Node extends AbstractActor {
         // they're the only ones with data you may be interested in
         int myIndex = 0;
         while (this.peers.get(myIndex).id != this.id) {myIndex++;}
-        // Crash.RequestDataMsg creation
+
         Crash.RequestDataMsg requestDataMsg = new Crash.RequestDataMsg(this.id);
         for (int i = -N+1; i< N; i++) {
             if (i==0) continue;
             int j = (i+myIndex+this.peers.size())%this.peers.size();
-            // Crash.RequestDataMsg send
+
             sendMessageDelay(this.peers.get(j).ref, requestDataMsg);
         }
 
@@ -904,7 +855,7 @@ public class Node extends AbstractActor {
                 data.add(new Pair<>(entry.getKey(), entry.getValue()));
             }
         }
-        // Crash.DataResponseMsg creation and send
+
         sendMessageDelay(getSender(), new Crash.DataResponseMsg(data));
     }
 

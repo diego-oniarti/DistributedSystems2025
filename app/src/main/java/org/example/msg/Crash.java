@@ -14,17 +14,12 @@ import akka.japi.Pair;
  * This class represents the messages exchanged to make node crash and recover.
  */
 public class Crash{
-    /**
-     * This class represents the message to begin the crash.
-     */
+    /** This class represents the message to begin the crash. */
     public static class InitiateMsg implements Serializable {};
 
-    /**
-     * This class represents the message to begin the recovery procedure.
-     */
+    /** This class represents the message to begin the recovery procedure. */
     public static class RecoveryMsg implements Serializable {
-        /** Node to request lost information.
-         */
+        /** Node to request lost information. */
         public final ActorRef helper;
 
         public RecoveryMsg(ActorRef helper) {
@@ -32,17 +27,12 @@ public class Crash{
         }
     }
 
-    /**
-     * This class represents the message to request the topology of the network.
-     */
+    /** This class represents the message to request the topology of the network. */
     public static class TopologyRequestMsg implements Serializable {};
 
-    /**
-     * This class represents the message to send the topology to the recovered node.
-     */
+    /** This class represents the message to send the topology to the recovered node. */
     public static class TopologyResponseMsg implements Serializable {
-        /** Topology of the network.
-         */
+        /** Topology of the network. */
         public final List<Node.Peer> peers;
 
         public TopologyResponseMsg(List<Node.Peer> peers) {
@@ -56,9 +46,7 @@ public class Crash{
      * of the recovered node.
      */
     public static class RequestDataMsg implements Serializable {
-        /**
-         * ID of the recovered node.
-         */
+        /** ID of the recovered node. */
         public final int id;
 
         public RequestDataMsg(int id) {
@@ -66,12 +54,9 @@ public class Crash{
         }
     };
 
-    /**
-     * This class represents the message to send the data items the recovered node is responsible for.
-     */
+    /** This class represents the message to send the data items the recovered node is responsible for. */
     public static class DataResponseMsg implements Serializable {
-        /** List of data items.
-         */
+        /** List of data items. */
         public final List<Pair<Integer, Entry>> data;
 
         public DataResponseMsg(List<Pair<Integer, Entry>> data) {

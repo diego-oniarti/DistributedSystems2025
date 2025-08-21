@@ -6,8 +6,6 @@ import akka.japi.Pair;
 
 import org.example.Node.Peer;
 import org.example.msg.Debug;
-import org.example.msg.Get;
-import org.example.msg.Set;
 import org.example.shared.Entry;
 import org.example.shared.Graph;
 import org.example.shared.NameGenerator;
@@ -94,184 +92,39 @@ public class AppDebug {
     }
 
     /**
-     * It performs a fixed network set test; it generates random set operations redirecting the out stream in a
-     * file "set.txt".
-     */
-    public void setFixedTest(){
-        // setting of the network
-        Random rng = new Random();
-
-        // create debug file and direct the console output to it
-        PrintStream console = System.out;
-        try{
-            PrintStream fileOut = new PrintStream(new FileOutputStream("set.txt"));
-            System.setOut(fileOut);
-        }catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        // generate random data items and send a set message; wait until the messages are finished
-        int bound = (STARTING_NODES+1)*10;
-
-        for (int i = 0; i<N_SET; i++){
-            int key = rng.nextInt(bound);
-            String value = NameGenerator.generateRandomString(3);
-            this.nodes_in.get(rng.nextInt(nodes_in.size())).ref
-                .tell(new Set.InitiateMsg(key, value), this.clients.get(rng.nextInt(clients.size())).ref);
-
-            try { Thread.sleep((long)(T*1.5)); } catch (InterruptedException e) {e.printStackTrace(); }
-        }
-
-        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
-
-        System.setOut(console);
-        try {
-            console.println(">> Press Enter to End <<");
-            System.in.read();
-        }catch (Exception e) {}
-
-        this.system.terminate();
-    }
-
-    /**
-     * Checks the set.txt file; it sees if the assignment of data items is correct and if the number of operations
-     * executed is correct.
+     * It performs the round simulation with the Coordinator. It redirects the out stream to a file.
      *
-     * @return a String explaining errors or success
+     * @param file name of the file to which redirect the out stream
      */
-    public String check_set_file() {
+    public void dynamicTest(String file){
 
-        // items inserted in the system
-        Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
-        // items inserted in nodes local storage
-        Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
-
-        for (Peer p : nodes_in) {
-            storage.put(p.id, new HashMap<>());
-        }
-
-        int n_fails = 0;
-
-        try {
-            File set = new File("set.txt");
-            Scanner scan = new Scanner(set);
-            while (scan.hasNextLine()) {        // WRITE node_id item_key version
-                if (scan.hasNext("WRITE")){
-                    scan.next();                // Discard WRITE
-                    int node_id = scan.nextInt();
-                    int item_key = scan.nextInt();
-                    int item_version = scan.nextInt();
-
-                    // Register the new item or update the version
-                    boolean item_is_present = items.get(item_key)!=null;
-                    if (!item_is_present || item_is_present && items.get(item_key) < item_version){
-                        items.put(item_key, item_version);
-                    }
-
-                    // Register the new value for the node
-                    storage.get(node_id).put(item_key, item_version);
-                } else{
-                    String msg = scan.nextLine();
-                    // update the number of fails
-                    if (msg.contains("Fail")){
-                        n_fails++;
-                    }
-                }
-            }
-            scan.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        // check number of data items
-        int successful_writes = 0;
-        for (int version: items.values()) {
-            successful_writes += version;
-        }
-        if (successful_writes != N_SET-n_fails){
-            return "Number of data items uncorrected";
-        }
-
-        // check data items assignment
-        for (int item_key : items.keySet()){
-            // Find items' location in the ring
-            int index = 0;
-            while (index < storage.size() && nodes_in.get(index).id < item_key){
-                index++;
-            }
-            if (index == storage.size()) { index = 0; }
-
-            // Check if all the responsibles have the item
-            for (int i = 0; i<N; i++){
-                int responsible_id = nodes_in.get((index+i)%nodes_in.size()).id;
-                if (storage.get(responsible_id).get(item_key) == null) {
-                    return "Node " + responsible_id + " has no item " + item_key;
-                }
-            }
-        }
-
-        return "Set test is correct";
-
-    }
-
-    /**
-     * This test performs set/get operations to evaluate sequential consistency. It redirects the out stream to a file
-     * "seq_cons.txt".
-     */
-    public void sequentialConsistencyTest() {
-        // setting of the network
         Random rng = new Random();
 
         // create debug file and direct the console output to it
         PrintStream console = System.out;
         try{
-            PrintStream fileOut = new PrintStream(new FileOutputStream("seq_cons.txt"));
+            PrintStream fileOut = new PrintStream(new FileOutputStream(file));
             System.setOut(fileOut);
         }catch (FileNotFoundException e) {
             e.printStackTrace();
         }
 
-        final int N_OP = 20;
+        coordinator.tell(new Debug.StartRoundMsg(),ActorRef.noSender());
 
-        int bound = (STARTING_NODES+1)*10;
-
-        int[] keys = new int[4];
-        for (int i=0; i<keys.length; i++) {
-            keys[i] = rng.nextInt(bound);
-        }
-
-        for (int i=0; i<N_OP; i++) {
-            ActorRef client = clients.get(rng.nextInt(clients.size())).ref;
-            Peer node = nodes_in.get(rng.nextInt(nodes_in.size()));
-            int key = keys[rng.nextInt(keys.length)];
-
-            if (rng.nextBoolean()) {
-                // SET
-                String value = NameGenerator.generateRandomString(5);
-                node.ref.tell(new Set.InitiateMsg(key, value), client);
-            }else{
-                // GET
-                node.ref.tell(new Get.InitiateMsg(key), client);
-            }
-            try { Thread.sleep((long)(T*3)); } catch (InterruptedException e) {e.printStackTrace(); }
-        }
-
-
-        try { Thread.sleep(T+1); } catch (InterruptedException e) {e.printStackTrace(); }
-        System.setOut(console);
         try {
-            console.println(">> Press Enter to End <<");
             System.in.read();
         }catch (Exception e) {}
+        System.setOut(console);
         this.system.terminate();
+
     }
 
     /**
      * It checks the file "seq_cons.txt" to see if the system follows sequential consistency. It creates a directed graph
-     * with nodes "itemkey.itemvalue" (where item value is the version). A node represents a read operation.
-     * Edges are from a node to the successive read operation that a client performed. To check sequential consistency,
-     * we check the existence of a topological order between nodes. If it is not so, the sequential consistency isn't
-     * provided.
+     * with nodes "itemkey.itemvalue.itemversion". A node represents a read operation.
+     * Edges are from a node to the successive read operation that a client performed on the same data item.
+     * To check sequential consistency, we check the existence of a topological order between nodes.
+     * If it is not so, the sequential consistency isn't provided.
      *
      * @return a String explaining errors or success
      */
@@ -287,7 +140,7 @@ public class AppDebug {
         try {
             File cons = new File("seq_cons.txt");
             Scanner scan = new Scanner(cons);
-            while (scan.hasNextLine()) {        // WRITE node_id item_key version
+            while (scan.hasNextLine()) {
                 if (scan.hasNext("READ")) { // READ client_ref node_id item_key version
                     scan.next();
                     String client = scan.next();
@@ -360,186 +213,11 @@ public class AppDebug {
     }
 
     /**
-     * It performs the round simulation with the Coordinator. It redirects the out stream to a file.
-     *
-     * @param file name of the file to which redirect the out stream
-     */
-    public void dynamicTest(String file){
-
-        Random rng = new Random();
-
-        // create debug file and direct the console output to it
-        PrintStream console = System.out;
-        try{
-            PrintStream fileOut = new PrintStream(new FileOutputStream(file));
-            System.setOut(fileOut);
-        }catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        coordinator.tell(new Debug.StartRoundMsg(),ActorRef.noSender());
-
-        try {
-            System.in.read();
-        }catch (Exception e) {}
-        System.setOut(console);
-        this.system.terminate();
-
-    }
-
-    /**
-     * It checks assignment of data items and reassignment of data items in presence of join and leave operations.
+     * It checks that round system data items assignment is correct checking the file "seq_cons.txt" containing
+     * the simulation output. It writes the execution better to the console.
      *
      * @return a String explaining errors or success
      */
-    public String check_dynamic_file(){
-        // items inserted in the system
-        Map<Integer, Integer> items = new HashMap<>();      // Key -> latest version
-        // items inserted in nodes local storage
-        Map<Integer, Map<Integer, Integer>> storage = new HashMap<>(); // node_id -> (key -> last version)
-
-        for (Peer p : nodes_in) {
-            storage.put(p.id, new HashMap<>());
-        }
-
-        int start = nodes_in.size();
-        int n_joins = 0;
-        int n_leave = 0;
-
-        try {
-            File set = new File("set_dynamic.txt");
-            Scanner scan = new Scanner(set);
-            int node_id = 0;
-            int item_key = 0;
-            int item_version = 0;
-
-            while (scan.hasNextLine()) {
-                String next = scan.next();
-                switch (scan.next()) {
-                    case "WRITE":               // WRITE node_id item_key version
-                    node_id = scan.nextInt();
-                    item_key = scan.nextInt();
-                    item_version = scan.nextInt();
-
-                    // Register the new item or update the version
-                    boolean item_is_present = items.get(item_key) != null;
-                    if (!item_is_present || item_is_present && items.get(item_key) < item_version) {
-                        items.put(item_key, item_version);
-                    }
-
-                    // Register the new value for the node
-                    storage.get(node_id).put(item_key, item_version);
-                    break;
-                    // when a joining node/node inserts a data item it is now responsible for
-                    case "ADD":                 //  ADD node_id item_key version
-                    node_id = scan.nextInt();
-                    item_key = scan.nextInt();
-                    item_version = scan.nextInt();
-                    // we register the node that was added to the joining node
-                    if (!storage.containsKey(node_id)){
-                        storage.put(node_id,new HashMap<>());
-                    }
-                    storage.get(node_id).put(item_key, item_version);
-                    break;
-                    // when a node deletes a data item the joining node is now responsible for
-                    case "DELETE":              //  DELETE node_id item_key
-                    node_id = scan.nextInt();
-                    item_key = scan.nextInt();
-                    storage.get(node_id).remove(item_key);
-                    break;
-                    case "JOINING":             // JOINING node_id
-                    n_joins++;
-                    node_id=scan.nextInt();
-
-                    // find the index of the joining node in the nodes out list
-                    int joining_index = 0;
-                    for (Peer p: nodes_out){
-                        if (p.id!=node_id){
-                            joining_index++;
-                        }else{
-                            break;
-                        }
-                    }
-
-                    // if there is, we insert the joining node to the nodes list maintaining the order, needed for
-                    // checks
-                    if (joining_index!=nodes_out.size()){
-                        Peer joining_node = nodes_out.remove(joining_index);
-                        int i=0;
-                        while (i<nodes_in.size() && joining_node.id > nodes_in.get(i).id) {
-                            i++;
-                        }
-                        nodes_in.add(i, joining_node);
-                    }
-
-                    break;
-                    case "LEAVE":               // LEAVE node_id
-                    n_leave++;
-                    node_id= scan.nextInt();
-
-                    // find the index of the leaving node in the nodes list
-                    int leave_index = 0;
-                    for (Peer p: nodes_in){
-                        if (p.id!=node_id){
-                            leave_index++;
-                        }else{
-                            break;
-                        }
-                    }
-
-                    // if there is, we insert the leaving node to the nodes out list
-                    if (leave_index!=nodes_in.size()){
-                        Peer leaving_node = nodes_in.remove(leave_index);
-                        this.nodes_out.add(leaving_node);
-                        storage.remove(leaving_node.id);
-                    }
-
-                    default:
-                    scan.nextLine();
-                }
-            }
-            scan.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        // check number of nodes
-        if (nodes_in.size()!=start+n_joins-n_leave){
-            return "Final number of nodes in uncorrected";
-        }
-
-        // check data items assignment
-        for (int item_key : items.keySet()){
-            // Find items' location in the ring
-            int index = 0;
-            while (index < storage.size() && nodes_in.get(index).id < item_key){
-                index++;
-            }
-            if (index == storage.size()) { index = 0; }
-
-            // Check if all the responsibles have the item
-            for (int i = 0; i<N; i++){
-                int responsible_id = nodes_in.get((index+i)%nodes_in.size()).id;
-                if (storage.get(responsible_id).get(item_key) == null) {
-                    return "Node " + responsible_id + " has no item " + item_key;
-                }else{
-                    // remove the element if present
-                    storage.remove(responsible_id).get(item_key);
-                }
-            }
-        }
-
-        // if we have some data items left in the storage this means that some nodes hold data items they are no
-        // responsible for
-        for (int k : storage.keySet()){
-            if (!storage.get(k).isEmpty()){
-                return "Some node has data items it is no longer responsible for";
-            }
-        }
-
-        return "Dynamic set test is correct";
-    }
-
     public String check_round_sim(){
         /** Storages of all the nodes in the system. Mirrors the state of the system as described by the ADD and DELETE operations */
         Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();  // NodeId -> ( DataKey -> <Value, Version> )
@@ -806,6 +484,8 @@ public class AppDebug {
     }
 
     /**
+     * It gets the responsible for a data item.
+     *
      * @param nodes_in The IDs of the nodes in the ring
      * @param key
      * @return Return a list of the IDs of the nodes responsible for a data key
@@ -822,6 +502,8 @@ public class AppDebug {
     }
 
     /**
+     * It checks if a node is responsible for a data item.
+     *
      * @param nodes_in The IDs of the nodes in the ring
      * @param id
      * @param key
@@ -832,9 +514,10 @@ public class AppDebug {
     }
 
     /**
+     * It checks if the actual storage and the simulated one are equal.
      * @param s1 Storage A
      * @param s2 Storage B
-     * @return Whether or not the two storages are equal
+     * @return Whether the two storages are equal
      */
     private boolean check_storage_equality(Map<Integer,Entry> s1, Map<Integer,Entry> s2) {
         if (s1 == null && s2 == null) return true;
@@ -867,11 +550,12 @@ public class AppDebug {
 
 
     /**
+     * Removes from each node the data items it is not responsible for.
+     * Crashed nodes are not affected.
+     *
      * @param storages All the simulated storages
      * @param nodes_in The IDs of the nodes in the ring
      * @param nodes_crashed The IDs of the nodes that have crashed
-     * Removes from each node the data items it is not responsible for.
-     * Crashed nodes are not affected
      */
     private void remove_excess(
         Map<Integer, Map<Integer, Entry>> storages,
