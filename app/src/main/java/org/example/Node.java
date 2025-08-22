@@ -501,9 +501,7 @@ public class Node extends AbstractActor {
         if (this.crashed) {return;}
         // it sends the data items that have a smaller key than the joining node id and the ones with bigger key
         // if we have less tha N nodes in the network
-        sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet().stream()
-            // .filter(k -> k<msg.joining_id || peers.size()<N)
-            .collect(Collectors.toSet())));
+        sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet()));
     }
 
     /**
