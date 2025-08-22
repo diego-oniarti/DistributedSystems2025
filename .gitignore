@@ -6,3 +6,10 @@ build
 /app/set.txt
 /app/seq_cons.txt
 /app/set_dynamic.txt
+report/main.aux
+report/main.fdb_latexmk
+report/main.fls
+report/main.log
+report/main.out
+report/main.synctex.gz
+report/main.toc
