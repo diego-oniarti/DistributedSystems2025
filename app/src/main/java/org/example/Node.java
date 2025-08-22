@@ -316,7 +316,8 @@ public class Node extends AbstractActor {
         }
 
         // debug
-        System.out.println("SET "+transaction.key+" "+transaction.value+" "+maxVersion+" ");
+        System.out.println("SET "+transaction.key+" "+transaction.value+" "+maxVersion);
+        System.out.println("WRITE "+transaction.client.toString()+ " " +transaction.key+" "+ transaction.value + " " + maxVersion);
     }
 
     /**

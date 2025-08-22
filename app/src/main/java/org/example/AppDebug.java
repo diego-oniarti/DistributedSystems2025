@@ -130,7 +130,7 @@ public class AppDebug {
      */
     public String check_consistency_file() {
         // read operations of clients
-        Map<String, List<Pair<Integer, Pair<String,Integer>>>> history = new HashMap<>();  // Client_name -> [(item_key, <item_value, item_version>)]
+        Map<String, List<Pair<Integer, Pair<Character, Entry>>>> history = new HashMap<>();  // Client_name -> [ <item_key, <read, <item_value, item_version>>> ]
         for (NamedClient client: clients) {
             history.put(client.ref.toString(), new LinkedList<>());
         }
@@ -150,11 +150,34 @@ public class AppDebug {
                     int item_version = scan.nextInt();
 
                     if (history.get(client) != null) { // Ignore gets made by nodes (for join operation)
-                        history.get(client).add(new Pair<>(item_key, new Pair<>(item_value,item_version)));
+                        history.get(client).add(new Pair<>(item_key, new Pair<>('r', new Entry(item_value,item_version))));
+
+                        // create node
+                        String tmp = item_key.toString()+"."+item_value+"."+item_version;
+                        graph.addNode("R"+tmp);
+                        graph.addEdge("W"+tmp, "R"+tmp); // Reads must happen after writes
+                    }
+                }else if (scan.hasNext("WRITE")) {
+                    scan.next();
+                    String client = scan.next();
+                    Integer item_key = scan.nextInt();
+                    String item_value = scan.next();
+                    int item_version = scan.nextInt();
+
+                    if (history.get(client) != null) { // Ignore gets made by nodes (for join operation)
+                        history.get(client).add(new Pair<>(item_key, new Pair<>('w', new Entry(item_value, item_version))));
+                        String tmp = item_key.toString()+"."+item_value+"."+item_version;
+                        graph.addNode("W"+tmp);
+
+                        // Read your writes
+                        graph.addNode("R"+tmp); // Imaginary read operation created to enforce this rule
+                        graph.addEdge(
+                            "W"+tmp,
+                            "R"+tmp
+                        );
+                        history.get(client).add(new Pair<>(item_key, new Pair<>('r', new Entry(item_value, item_version))));
                     }
 
-                    // create node
-                    graph.addNode(item_key.toString()+"."+item_value+"."+item_version);
                 } else {
                     scan.nextLine();
                 }
@@ -169,20 +192,31 @@ public class AppDebug {
             Map<Integer, Pair<String,Integer>> last_seen = new HashMap<>();
             String cid = client.ref.toString();
 
-            List<Pair<Integer, Pair<String,Integer>>> clientHistory = history.get(client.ref.toString());
-            for (Pair<Integer, Pair<String,Integer>> read: clientHistory) {
-                int key = read.first();
-                String val = read.second().first();
-                int version = read.second().second();
+            List<Pair<Integer, Pair<Character, Entry>>> clientHistory = history.get(client.ref.toString());
+            for (Pair<Integer, Pair<Character, Entry>> entry: clientHistory) {
+                int key = entry.first();
+                Character rw = entry.second().first();
+                String val = entry.second().second().value;
+                int version = entry.second().second().version;
 
-                Pair<String,Integer> last_entry = last_seen.get(key);
-                last_seen.put(key, new Pair<>(val,version));
-                if (last_entry==null) {
-                    continue;
-                }
-                if (!(last_entry.first().equals(val) && last_entry.second().equals(version))) { // Avoid self-loops
-                    // create edge
-                    graph.addEdge(key+"."+last_entry.first()+"."+last_entry.second(), key+"."+val+"."+version);
+                if (rw=='r') {
+                    Pair<String,Integer> last_entry = last_seen.get(key);
+                    last_seen.put(key, new Pair<>(val,version));
+                    if (last_entry==null) {
+                        continue;
+                    }
+                    if (!(last_entry.first().equals(val) && last_entry.second().equals(version))) { // Avoid self-loops
+                        // create edge
+                        graph.addEdge("R"+key+"."+last_entry.first()+"."+last_entry.second(), "R"+key+"."+val+"."+version);
+                    }
+                } else {
+                    for (HashMap.Entry<Integer, Pair<String, Integer>> e: last_seen.entrySet()) {
+                        graph.addEdge(
+                            "R"+e.getKey()+"."+e.getValue().first()+"."+e.getValue().second(),
+                            "W"+key+"."+val+"."+version
+                        );
+
+                    }
                 }
             }
         }
@@ -195,18 +229,23 @@ public class AppDebug {
 
         // print order if found
         System.out.println("ORDERING:");
-        for (String e: ordering) {
-            System.out.print(e+" ");
-        }
+        System.out.print(ordering.stream().collect(Collectors.joining(" - ")));
         System.out.println();
 
-        for (HashMap.Entry<String, List<Pair<Integer, Pair<String,Integer>>>> e: history.entrySet()) {
-            String client = e.getKey();
-            System.out.print(client+": ");
-            for (Pair<Integer, Pair<String,Integer>> read: e.getValue()) {
-                System.out.print(read.first()+"."+read.second().first()+"."+read.second().second()+" - ");
-            }
-            System.out.println();
+        for (HashMap.Entry<String, List<Pair<Integer, Pair<Character, Entry>>>> e: history.entrySet()) {
+            // Iterate through the NamesClients, filter out the one with the same ref as this entry, get its name
+            String client_name = clients.stream()
+            .filter(c->c.ref.toString().equals(e.getKey()))
+            .findAny().map(nc->nc.name).orElse("name_unknown");
+
+            System.out.print("\n"+client_name+": ");
+            // for (Pair<Integer, Pair<Character, Entry>> read: e.getValue()) {
+            //     System.out.print(read.second().first().toString()+read.first()+"."+read.second().second().value+"."+read.second().second().version+" - ");
+            // }
+            // Same print as above, but it does not pring a dash at the end of the line
+            System.out.println(e.getValue().stream().map(r->
+                r.second().first().toString()+r.first()+"."+r.second().second().value+"."+r.second().second().version
+            ).collect(Collectors.joining(" - ")));
         }
 
         return "Sequentially consistent";

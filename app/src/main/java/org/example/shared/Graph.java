@@ -19,7 +19,7 @@ public class Graph {
     }
 
     public boolean addNode(String node) {
-        edges.put(node, new HashSet<>());
+        edges.putIfAbsent(node, new HashSet<>());
         return this.nodes.add(node);
     }
 
