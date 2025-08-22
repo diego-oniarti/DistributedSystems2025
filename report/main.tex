@@ -4,7 +4,8 @@
 \usepackage{amsmath}
 \input{common}
 \usepackage[parfill]{parskip}
-\usepackage[a4paper, total={6in, 8in}]{geometry}
+\usepackage[a4paper, total={6in, 9in}]{geometry}
+\usepackage{multicol}
 
 \title{Distributed Systems - Project Report}
 \author{Diego Oniarti - Alessandra Dalla Verde}
@@ -14,6 +15,8 @@
 
 \maketitle
 \tableofcontents
+
+%\begin{multicols}{2}
 
 \section{Design Choices}
 % - nodes, clients, coordinator
@@ -56,11 +59,11 @@ system. To reduce the number of messages we adopted the following strategies:
     neighbor for the data items that it is going to be responsible for, 
     avoiding a number of unnecessary message exchanges.\\
         The latest version of these data items is then obtained through the 
-        Get operation. As stated above, reads already uses the least 
+        Get operation. As stated above, reads already use the least 
         amount of required messages.
     \item \textbf{Leave:} the leaving node must transfer its data items to their 
     new responsible nodes. If multiple data items are sent to the same node, 
-    they are bundled in the same message.
+    they are bundled into the same message.
     \item \textbf{Crash:} When a node crashes it sends no messages to the 
     other nodes, only setting an internal flag. This operation is triggered 
     by a control message.
@@ -71,7 +74,7 @@ system. To reduce the number of messages we adopted the following strategies:
     one. Only these nodes may have the desired data items.
 \end{enumerate}
 
-\begin{figure}
+\begin{figure}[ht!]
     \centering
     \includegraphics[width=1\linewidth]{images/messages.png}
     \caption{System messages}
@@ -87,7 +90,7 @@ for their results and an additional time delay to let the system settle.
 Only then it will start a new round.
 % mention how the result of the operations is used to keep track of which nodes are in the loop and which one left / joined etc
 
-\subsection{Testing though Simulation}
+\subsection{Testing Though Simulation}
 We perform two kinds of test on the system, both performed by the AppDebug class. 
 Both tests rely on a log file containing a sequence of events in their global order.
 
@@ -99,14 +102,36 @@ The events stored in the file are:
     to the file as a single atomic entry.
 \end{itemize}
 
-\paragraph {Sequential Consistency}
-A validator reads the log file and keeps track of all the successful read 
-operations, storing each one as a node in a graph
+\paragraph {First Test: Sequential Consistency}
+A validator reads the log file and keeps track of all the successful read and write
+operations, storing each one as a node in a graph. The nodes are identified
+by the operation performed, the key of the item, its value, and its version.
 
-% \begin{itemize}
-%     \item Sequential consistency: if there exists a topological order among read operations on the data item, the system enforces data-centric sequential consistency. Client-centric sequential consistency in guaranteed by the quorum instead.
-%     \item Replication assignment: 
-% \end{itemize}
+Edges are then added between nodes to represent the happens-before relations between them:
+\begin{enumerate}
+    \item Write nodes are linked to all the read nodes with the same key and value, since
+        a value has to be written before being read
+    \item If two read events for the same key happen on the same client, an edge is created
+        to represent this ordering
+    \item Each time a client writes something, an edge between all preceding read nodes (from the same client) and the
+        newly formed write node is formed
+\end{enumerate}
+Finally, the system checks for the existence of a topological order of this graph, and signals an error if it can't find any.\\
+If none is found, it must be because the graph contains at least one loop, which shouldn't happen since the edges
+represent the happens-before relation which is acyclic.
+
+If an ordering is found instead, the system enforced data-centric sequential consistency. Client-centric sequential consistency is guaranteed by the quorum instead.
+
+\paragraph {Second Test: Mirroring Execution}
+For the second test, two replicas of the system are created.
+Each replica tracks the individual storages of each node.
+
+The first replica perfectly mirrors the execution of the real system. Data items are added or removed from the nodes if and only if the log file states that an alteration happened to the node's storage.
+
+The second replica only reads the entries of the log file that report a successful operation (be it a management one or a read/write request) and simulates it.\\
+The simulation keeps track of which nodes are in the system, which ones are crashed, and updates their storages accordingly.
+
+At the end of each round the storage of each node in the first replica is compared with the corresponding one in the second replica. If no divergence between the two systems is found we can confirm the actual system behaves as assumed.
 
 \section{Assumptions and Requirements}
 % start with N nodes
@@ -117,5 +142,11 @@ operations, storing each one as a node in a graph
 % sequential consistency
 % number of messages
 % concurrent operations
+
+%\end{multicols}
+%\newpage
+%\appendix
+%\section{Test}
+%test
 
 \end{document}
