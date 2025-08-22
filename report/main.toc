@@ -1,8 +1,0 @@
-\contentsline {section}{\numberline {1}Design Choices}{1}{section.1}%
-\contentsline {subsection}{\numberline {1.1}System Layout}{1}{subsection.1.1}%
-\contentsline {subsection}{\numberline {1.2}Messages}{1}{subsection.1.2}%
-\contentsline {subsection}{\numberline {1.3}Round system}{2}{subsection.1.3}%
-\contentsline {subsection}{\numberline {1.4}Testing though Simulation}{2}{subsection.1.4}%
-\contentsline {paragraph}{Sequential Consistency}{2}{section*.2}%
-\contentsline {section}{\numberline {2}Assumptions and Requirements}{2}{section.2}%
-\contentsline {section}{\numberline {3}Implementation Features}{2}{section.3}%
