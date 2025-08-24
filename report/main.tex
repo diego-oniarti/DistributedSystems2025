@@ -150,15 +150,14 @@ represent the happens-before relation which is acyclic.
 If an ordering is found instead, the system enforced data-centric sequential consistency. Client-centric sequential consistency is guaranteed by the quorum instead.
 
 \paragraph {Second Test: Mirroring Execution}
-For the second test, two replicas of the system are created.
-Each replica tracks the individual storages of each node.
+For the second test, two replicas of the system are created, each one tracking the individual storages of all nodes.
 
 The first replica perfectly mirrors the execution of the real system. Data items are added or removed from the nodes if and only if the log file states that an alteration happened to the node's storage.
 
 The second replica only reads the entries of the log file that report a successful operation (be it a management one or a read/write request) and simulates it.\\
 The simulation keeps track of which nodes are in the system, which ones are crashed, and updates their storages accordingly.
 
-At the end of each round the storage of each node in the first replica is compared with the corresponding one in the second replica. If no divergence between the two systems is found we can confirm the actual system behaves as assumed.
+At the end of each round the storage of each node in the first replica is compared with the corresponding one in the second replica. If no divergence between the two systems is found we can confirm the actual system behaves correctly.
 
 \section{Assumptions and Requirements}
 % start with N nodes
