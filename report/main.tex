@@ -82,13 +82,40 @@ system. To reduce the number of messages we adopted the following strategies:
 \end{figure}
 
 \subsection{Round system}
-There are two types of rounds: ones in which the system resolves client 
-requests (read and write), and ones in which a node performs management 
+There are two types of rounds: ones in which the system resolves a request (read
+or write) for each client, and ones in which a node performs management 
 operations (join/leave, crash/recover).
-After sending the initiation message for each operation the coordinator waits 
-for their results and an additional time delay to let the system settle. 
-Only then it will start a new round.
-% mention how the result of the operations is used to keep track of which nodes are in the loop and which one left / joined etc
+
+\textbf{Fig.} shows the flowchart of a system round. The first 
+diagram represents the simulation core: the coordinator continues 
+issuing operations until it reaches a stopping criterion 
+and decides which type of round it must begin. The second scheme is the round 
+final part: the coordinator waits for the operations results and an additional 
+time delay to let the system settle. Only then it will start a new round.
+
+In the diagrams appear fundamentals variables:
+\begin{itemize}
+    \item \texttt{ROUNDS}: global variable indicating how many rounds the 
+    coordinator must perform.
+    \item \texttt{ongoing\_actions}: number of pending operations for which the 
+    coordinator must receive a result (success of fail). It is set based on the 
+    type of round performed.
+    \item \texttt{nodes\_in}: list of nodes in the network.
+    \item \texttt{nodes\_out}: list of nodes out from the network from which the 
+    coordinator chooses a joining node and put the leaving nodes.
+    \item \texttt{crashed\_nodes}: list of crashed nodes.
+\end{itemize}
+
+The coordinator updates the above lists based on the operations performed, thus 
+at the begin of each round the coordinator knows the nodes state and it is 
+able to perform actions respecting the system requirements and assumptions.
+
+\begin{figure}[ht!]
+    \centering
+    \includegraphics[width=1\linewidth]{images/round_sys.png}
+    \caption{Round System}
+    \label{fig:round_sys}
+\end{figure}
 
 \subsection{Testing Though Simulation}
 We perform two kinds of test on the system, both performed by the AppDebug class. 
