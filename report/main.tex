@@ -86,29 +86,29 @@ There are two types of rounds: ones in which the system resolves a request (read
 or write) for each client, and ones in which a node performs management 
 operations (join/leave, crash/recover).
 
-\textbf{Fig.} shows the flowchart of a system round. The first 
-diagram represents the simulation core: the coordinator continues 
+\textbf{Fig.\ref{fig:round_sys}} shows the flowchart of a system's round. The first 
+diagram represents the simulation's core: the coordinator continues 
 issuing operations until it reaches a stopping criterion 
-and decides which type of round it must begin. The second scheme is the round 
-final part: the coordinator waits for the operations results and an additional 
+and decides which type of round it must begin. The second scheme is the rounds 
+final part: the coordinator waits for the operations' results and an additional 
 time delay to let the system settle. Only then it will start a new round.
 
-In the diagrams appear fundamentals variables:
+Fundamental variables appear in the diagrams :
 \begin{itemize}
     \item \texttt{ROUNDS}: global variable indicating how many rounds the 
-    coordinator must perform.
+    coordinator must perform
     \item \texttt{ongoing\_actions}: number of pending operations for which the 
-    coordinator must receive a result (success of fail). It is set based on the 
-    type of round performed.
-    \item \texttt{nodes\_in}: list of nodes in the network.
+    coordinator must receive a result (success of fail); it is set based on the 
+    type of round performed
+    \item \texttt{nodes\_in}: list of nodes in the network
     \item \texttt{nodes\_out}: list of nodes out from the network from which the 
-    coordinator chooses a joining node and put the leaving nodes.
-    \item \texttt{crashed\_nodes}: list of crashed nodes.
+    coordinator chooses a joining node and in which it puts leaving nodes
+    \item \texttt{crashed\_nodes}: list of crashed nodes
 \end{itemize}
 
-The coordinator updates the above lists based on the operations performed, thus 
-at the begin of each round the coordinator knows the nodes state and it is 
-able to perform actions respecting the system requirements and assumptions.
+The coordinator updates the above lists based on the performed operations, thus 
+at the begin of each round, the coordinator knows the nodes' state and it is 
+able to perform actions respecting the system's requirements and assumptions.
 
 \begin{figure}[ht!]
     \centering
@@ -117,7 +117,47 @@ able to perform actions respecting the system requirements and assumptions.
     \label{fig:round_sys}
 \end{figure}
 
-\subsection{Testing Though Simulation}
+\subsection{Crash and Recovery}
+When a node crashes, it simply set an internal flag (\texttt{crashed}) and it 
+stops processing messages. 
+
+When a node recovers, it asks network topology and it requests updated versions 
+of its data items. It may not receive one or more answers, in which case it
+will maintain its own versions. It is not a problem, because this would only 
+happen if all other nodes responsible for a data item were also crashed. If that 
+were the case we can assume any other write operation would also have failed,
+without modifying the data items.
+
+\section{Assumptions and Requirements}
+To ensure the system's liveliness, we made the following additional
+assumptions:
+\begin{itemize}
+    \item clients contact an active node during set/get operations
+    \item the joining node contacts an active bootstrapping peer
+    \item join can fail when the node cannot read the data items it will 
+    be responsible for or when the clockwise neighbor is crashed; in this last 
+    case the system could stall
+    \item leave can fail when the leaving node cannot share its data items
+    within a given timeout
+    \item a node can't leave if there are exactly $N$ nodes in the network
+\end{itemize}
+
+\subsection{Sequential Consistency}
+We provided sequential consistency by managing concurrent operations and by
+setting quorums appropriately.
+
+Read/write and write/write conflicts (race conditions) are resolved by 
+failing the read operation in the first case, and one of the two 
+writes in the second one.
+
+As we have seen in class, to provide sequential consistency with quorums, it is 
+sufficient to set the parameters $N$, $N_{W}$, and $N_{R}$ such that:
+\begin{align*}
+    N_{W}&>\frac{N}{2} \\
+    N_{W}+N_{R}&>N
+\end{align*}
+
+\section{Testing though Simulation}
 We perform two kinds of test on the system, both performed by the AppDebug class. 
 Both tests rely on a log file containing a sequence of events in their global order.
 
@@ -134,45 +174,46 @@ A validator reads the log file and keeps track of all the successful read and wr
 operations, storing each one as a node in a graph. The nodes are identified
 by the operation performed, the key of the item, its value, and its version.
 
-Edges are then added between nodes to represent the happens-before relations between them:
+Edges are then added between nodes to represent the happens-before relations 
+between them:
 \begin{enumerate}
-    \item Write nodes are linked to all the read nodes with the same key and value, since
+    \item write nodes are linked to all the read nodes with the same key and 
+    value, since
         a value has to be written before being read
-    \item If two read events for the same key happen on the same client, an edge is created
+    \item if two read events for the same key happen on the same client, an edge 
+    is created
         to represent this ordering
-    \item Each time a client writes something, an edge between all preceding read nodes (from the same client) and the
+    \item each time a client writes something, an edge between all preceding 
+    read nodes (from the same client) and the
         newly formed write node is formed
 \end{enumerate}
-Finally, the system checks for the existence of a topological order of this graph, and signals an error if it can't find any.\\
-If none is found, it must be because the graph contains at least one loop, which shouldn't happen since the edges
+Finally, the system checks for the existence of a topological order of this 
+graph, and signals an error if it can't find any.\\
+If none is found, it must be because the graph contains at least one loop, which 
+shouldn't happen since the edges
 represent the happens-before relation which is acyclic.
 
-If an ordering is found instead, the system enforced data-centric sequential consistency. Client-centric sequential consistency is guaranteed by the quorum instead.
+If an ordering is found instead, the system enforced data-centric sequential 
+consistency.
 
 \paragraph {Second Test: Mirroring Execution}
-For the second test, two replicas of the system are created, each one tracking the individual storages of all nodes.
+For the second test, two replicas of the system are created, each one tracking
+the individual storages of all nodes.
 
-The first replica perfectly mirrors the execution of the real system. Data items are added or removed from the nodes if and only if the log file states that an alteration happened to the node's storage.
+The first replica perfectly mirrors the execution of the real system. Data items
+are added or removed from the nodes if and only if the log file states that an
+alteration happened to the node's storage.
 
-The second replica only reads the entries of the log file that report a successful operation (be it a management one or a read/write request) and simulates it.\\
-The simulation keeps track of which nodes are in the system, which ones are crashed, and updates their storages accordingly.
+The second replica only reads the entries of the log file that report a
+successful operation (be it a management one or a read/write request) and
+simulates it.
 
-At the end of each round the storage of each node in the first replica is compared with the corresponding one in the second replica. If no divergence between the two systems is found we can confirm the actual system behaves correctly.
+The simulation keeps track of which nodes are in the system, which ones are
+crashed, and updates their storages accordingly.
 
-\section{Assumptions and Requirements}
-% start with N nodes
-% operations can fail
-% coordinator's conditions
-
-\section{Implementation Features}
-% sequential consistency
-% number of messages
-% concurrent operations
-
-%\end{multicols}
-%\newpage
-%\appendix
-%\section{Test}
-%test
+At the end of each round the storage of each node in the first replica is
+compared with the corresponding one in the second replica. If no divergence
+between the two systems is found we can confirm the actual system behaves
+correctly.
 
 \end{document}
