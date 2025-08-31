@@ -19,7 +19,7 @@ public class NameGenerator {
     }
 
     private void loadFruit() {
-        File f = new File("fruits.txt");
+        File f = new File("app/fruits.txt");
         try {
             Scanner scan = new Scanner(f);
             while (scan.hasNextLine()) {
@@ -33,7 +33,7 @@ public class NameGenerator {
     }
 
     private void loadPeople() {
-        File f = new File("names.txt");
+        File f = new File("app/names.txt");
         try {
             Scanner scan = new Scanner(f);
             while (scan.hasNextLine()) {

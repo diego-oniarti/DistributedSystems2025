@@ -101,6 +101,9 @@ public class Coordinator extends AbstractActor {
     private void receiveStartRoundMsg(Debug.StartRoundMsg msg){
         current_round++;
         if (current_round>=ROUNDS){
+            if (ongoing_actions>0){
+                System.out.println("\\\\\\\\\\ ROUND END");
+            }
             System.err.println("> PRESS ENTER <");
             return;
         }

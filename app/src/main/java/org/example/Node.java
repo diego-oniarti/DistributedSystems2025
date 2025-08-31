@@ -295,8 +295,6 @@ public class Node extends AbstractActor {
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
-        // FIXME: need to send the message with a delay?
-        // transaction.client.tell(new Set.SuccessMsg(transaction.key), getSelf());
         sendMessageDelay(transaction.client, new Set.SuccessMsg(transaction.key));
 
         int maxVersion = 0;
@@ -345,7 +343,6 @@ public class Node extends AbstractActor {
         SetTransaction transaction = this.setTransactions.remove(msg.transaction_id);
 
         if (transaction!=null) {
-            //transaction.client.tell(new Set.FailMsg(transaction.key), getSelf());
             sendMessageDelay(transaction.client, new Set.FailMsg(transaction.key));
             for (Peer p: this.getResponsibles(transaction.key)) {
                 sendMessageDelay(p.ref, new Set.UnlockMsg(transaction.key));

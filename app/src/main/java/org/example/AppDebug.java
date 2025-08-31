@@ -26,9 +26,6 @@ import static org.example.App.*;
  */
 public class AppDebug {
 
-    /** Number of set operations for fixed network test set */
-    public static final int N_SET = 10;
-
     /** Number of clients in the system */
     public static final int N_CLIENT = 2;
 
@@ -68,7 +65,8 @@ public class AppDebug {
 
     /** It creates and add nodes (in and out) to the system informing the coordinator. */
     public void addNodes(){
-        for (int i=0; i<STARTING_NODES*2; i++) {
+
+        for (int i=0; i<STARTING_NODES*3; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
             p.ref.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
             if (i<STARTING_NODES){
@@ -480,7 +478,7 @@ public class AppDebug {
 
                     case "RECOVERY":
                     id = scan.nextInt();
-                    System.out.println("RECOVERY " + id + "SUCCESS");
+                    System.out.println("RECOVERY " + id + " SUCCESS");
                     nodes_crashed.remove(id);
 
                     // The node gets the new data items.
