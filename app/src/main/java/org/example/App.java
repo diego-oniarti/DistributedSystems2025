@@ -32,10 +32,3 @@ public class App {
         System.out.println(e_sim);
     }
 }
-
-/**
- * Assumptions and Considerations
- * The system will start with N nodes.
- * If this were not the case, the quorum during the joining
- * operation for the first nodes wouldn't be met
- */

@@ -6,7 +6,6 @@ import static org.example.App.N;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import akka.actor.AbstractActor;
@@ -244,6 +243,18 @@ public class Node extends AbstractActor {
         if (this.crashed) {
             // debug
             System.out.println("!!! IGNORING SET ON CRASHED");
+            return;
+        }
+
+        for (SetTransaction t : this.setTransactions.values()){
+            if (msg.key==t.key){
+                sendMessageDelay(getSender(), new Set.FailMsg(msg.key));
+                return;
+            }
+        }
+
+        if (this.ongoing_set_keys.contains(msg.key)){
+            sendMessageDelay(getSender(), new Set.FailMsg(msg.key));
             return;
         }
 
@@ -494,11 +505,8 @@ public class Node extends AbstractActor {
      *
      * @param msg Join.ResponsibilityRequestMsg message
      */
-    // TODO: ask Diego about comment link in stream
     private void receiveResponsibilityRequest(Join.ResponsibilityRequestMsg msg){
         if (this.crashed) {return;}
-        // it sends the data items that have a smaller key than the joining node id and the ones with bigger key
-        // if we have less tha N nodes in the network
         sendMessageDelay(getSender(),new Join.ResponsibilityResponseMsg(this.storage.keySet()));
     }
 

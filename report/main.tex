@@ -157,6 +157,28 @@ sufficient to set the parameters $N$, $N_{W}$, and $N_{R}$ such that:
     N_{W}+N_{R}&>N
 \end{align*}
 
+\subsection{Concurrent Transactions}
+Concurrent operations may affect the system right behavior. Write/write 
+conflicts may cause inconsistency: responsible nodes may have different values 
+and same version for a data item. Read/write conflicts may break sequential 
+consistency.
+
+We manage these conflicts in the following way:
+\begin{itemize}
+    \item write/write conflicts: the set transaction fails if the responsible 
+    nodes for it are managing other write operations. When a node receives 
+    a version request for a data item, it locks the data item's key and only 
+    when the set transaction ends, the node frees it (see messages of set 
+    operation in figure \textbf{Fig.\ref{fig:messages}}). 
+    \\In some corner cases, it may happen that all concurrent write 
+    operations fail. This behavior is given by the design choice of concurrent 
+    requests' management system: to avoid the risk that a concurrent transaction 
+    violates the system, we block it immediately.
+    \item read/write conflicts: the get transactions fail if responsible 
+    nodes are participating in a set operation on the same data item. If the 
+    key is locked, the node does not continue performing the read operation.
+\end{itemize}
+
 \section{Testing though Simulation}
 We perform two kinds of test on the system, both performed by the AppDebug class. 
 Both tests rely on a log file containing a sequence of events in their global order.
