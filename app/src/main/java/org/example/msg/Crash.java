@@ -11,13 +11,13 @@ import akka.actor.ActorRef;
 import akka.japi.Pair;
 
 /**
- * This class represents the messages exchanged to make node crash and recover.
+ * This class represents the messages exchanged during a crash/recovery operation.
  */
 public class Crash{
-    /** This class represents the message to begin the crash. */
+    /** This class represents the message for beginning the crash. */
     public static class InitiateMsg implements Serializable {};
 
-    /** This class represents the message to begin the recovery procedure. */
+    /** This class represents the message for beginning the recovery procedure. */
     public static class RecoveryMsg implements Serializable {
         /** Node to request lost information. */
         public final ActorRef helper;
@@ -27,12 +27,12 @@ public class Crash{
         }
     }
 
-    /** This class represents the message to request the topology of the network. */
+    /** This class represents the message for requesting the topology of the network. */
     public static class TopologyRequestMsg implements Serializable {};
 
-    /** This class represents the message to send the topology to the recovered node. */
+    /** This class represents the message for giving the topology to the recovered node. */
     public static class TopologyResponseMsg implements Serializable {
-        /** Topology of the network. */
+        /** Network topology. */
         public final List<Node.Peer> peers;
 
         public TopologyResponseMsg(List<Node.Peer> peers) {
@@ -42,7 +42,7 @@ public class Crash{
     }
 
     /**
-     * This class represents the message to request the data from the node that were responsible for the data items
+     * This class represents the message for requesting the data to the node that were responsible for the data items
      * of the recovered node.
      */
     public static class RequestDataMsg implements Serializable {
@@ -54,7 +54,7 @@ public class Crash{
         }
     };
 
-    /** This class represents the message to send the data items the recovered node is responsible for. */
+    /** This class represents the message for giving the data items the recovered node is responsible for. */
     public static class DataResponseMsg implements Serializable {
         /** List of data items. */
         public final List<Pair<Integer, Entry>> data;

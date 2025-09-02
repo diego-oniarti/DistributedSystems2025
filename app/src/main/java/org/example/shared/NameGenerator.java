@@ -4,6 +4,9 @@ import java.io.File;
 import java.util.Random;
 import java.util.Scanner;
 
+/**
+ * This class represents a generator for naming clients and data items' values.
+ */
 public class NameGenerator {
     private static final NameGenerator single = new NameGenerator();
     private RngList<String> fruitNames;

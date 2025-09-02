@@ -71,7 +71,7 @@ public class Client extends AbstractActor {
     }
 
     /**
-     * Debug.AnnounceCoordinator handler; the client stores the coordinator ActorRef.
+     * Debug.AnnounceCoordinator handler; the client stores the coordinator's ActorRef.
      *
      * @param msg Debug.AnnounceCoordinator message
      */

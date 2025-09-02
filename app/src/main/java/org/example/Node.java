@@ -35,9 +35,9 @@ public class Node extends AbstractActor {
     private HashMap<Integer, Entry> storage;
     /** List of all the nodes in the network. */
     private List<Peer> peers;
-    /** List of set requests (write) that the node is managing. */
+    /** List of set requests (write) that the node is managing as coordinator. */
     private HashMap<Integer, SetTransaction> setTransactions;
-    /** List of get requests (read) that the node is managing. */
+    /** List of get requests (read) that the node is managing as coordinator. */
     private HashMap<Integer, GetTransaction> getTransactions;
     /** Number of transactions that the node is managing. */
     private int id_counter;
@@ -45,21 +45,21 @@ public class Node extends AbstractActor {
     /** Boolean value, if true the node crashed. */
     private boolean crashed;
 
-    /** Number of data items the joining node is reading */
+    /** Number of data items the joining node is reading. */
     private int joinKeyCount;
-    /** True if the joining node was able to contact the bootstrapping peer */
+    /** True if the joining node was able to contact the bootstrapping peer. */
     private boolean is_joining;
-    /** True if one or more joining node read operations failed */
+    /** True if one or more joining node read operations failed. */
     private boolean join_failed;
 
-    /** Map containing the data items of the leaving node that will be put in the storage if the operation is successful */
+    /** Map containing the data items of the leaving node that will be put in the storage if the operation is successful. */
     private HashMap<Integer, Entry> stagedStorage;
-    /** Number of nodes that will store leaving node data items */
+    /** Number of nodes that will store leaving node data items. */
     private int leavingCount;
-    /** True is the leaving node is leaving (it is sending its data items to other nodes) */
+    /** True is the leaving node is leaving (it is sending its data items to other nodes). */
     private boolean is_leaving;
 
-    /** Set of data items keys for which the node is executing set transactions */
+    /** Set of data items keys for which the node is executing set transactions (as responsible for them). */
     private java.util.Set<Integer> ongoing_set_keys;
 
     /** ActorRef of the coordinator */
@@ -148,6 +148,11 @@ public class Node extends AbstractActor {
 
     /// DEBUG
 
+    /**
+     * Debug.AddNodeMsg handler; the node adds a new node to its network's knowledge.
+     *
+     * @param msg Debug.AddNodeMsg message
+     */
     private void receiveDebugAddNode(Debug.AddNodeMsg msg) {
         // Find the index where to put the new peer and insert it
         int i = 0;
@@ -155,6 +160,11 @@ public class Node extends AbstractActor {
         this.peers.add(i, new Peer(msg.id, msg.ref));
     }
 
+    /**
+     * Debug.AnnounceCoordinator handler; the node sets teh coordinator.
+     *
+     * @param msg Debug.AnnounceCoordinator message
+     */
     private void receiveAnnounceCoordinator(Debug.AnnounceCoordinator msg){
         this.coordinator = msg.coordinator;
     }
@@ -234,8 +244,8 @@ public class Node extends AbstractActor {
     /// SET(k, v)
 
     /**
-     * Set.InitiateMsg handler; finds responsibles for the data item, sets a timeout and requests the version to
-     * the responsibles.
+     * Set.InitiateMsg handler; finds the responsible for the data item, sets a timeout and requests the version to
+     * the responsible for it.
      *
      * @param msg Set.InitiateMsg message
      */
@@ -246,6 +256,7 @@ public class Node extends AbstractActor {
             return;
         }
 
+        // check that the node isn't managing another set transaction with the same key
         for (SetTransaction t : this.setTransactions.values()){
             if (msg.key==t.key){
                 sendMessageDelay(getSender(), new Set.FailMsg(msg.key));
@@ -253,6 +264,7 @@ public class Node extends AbstractActor {
             }
         }
 
+        // check that the node isn't participating in a set transaction with the same key
         if (this.ongoing_set_keys.contains(msg.key)){
             sendMessageDelay(getSender(), new Set.FailMsg(msg.key));
             return;
@@ -281,6 +293,7 @@ public class Node extends AbstractActor {
     private void receiveVersionRequest(Set.VersionRequestMsg msg) {
         if (this.crashed) return;
 
+        // lock the key or check that the node isn't participating in a set transaction with the same key (lock th
         if (!this.ongoing_set_keys.add(msg.key)) {
             return;
         }
@@ -298,16 +311,19 @@ public class Node extends AbstractActor {
      */
     private void receiveVersionResponse(Set.VersionResponseMsg msg) {
         if (this.crashed) return;
+        // the set transaction finished
         if (!this.setTransactions.containsKey(msg.transacition_id)) { return; }
 
         SetTransaction transaction = this.setTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.version);
 
+        // check the quorum
         if (transaction.replies.size() < App.W) { return; }
         this.setTransactions.remove(msg.transacition_id);
 
         sendMessageDelay(transaction.client, new Set.SuccessMsg(transaction.key));
 
+        // update version and value
         int maxVersion = 0;
         for (int response: transaction.replies) {
             if (response > maxVersion) {
@@ -337,6 +353,7 @@ public class Node extends AbstractActor {
     private void receiveUpdateMessage(Set.UpdateEntryMsg msg) {
         if (this.crashed) return;
         this.storage.put(msg.key, msg.entry);
+        // unlock the key
         this.ongoing_set_keys.remove(msg.key);
 
         // debug
@@ -362,8 +379,7 @@ public class Node extends AbstractActor {
     }
 
     /**
-     * Set.UnlockMsg handler; it removes the data item key from the ongoing set keys to be able to start new
-     * set transactions on that data item.
+     * Set.UnlockMsg handler; it unlocks the key.
      *
      * @param msg Set.UnlockMsg message
      */
@@ -421,10 +437,12 @@ public class Node extends AbstractActor {
      */
     public void receiveEntryResponse(Get.EntryResponseMsg msg) {
         if (this.crashed) return;
+        // check that the get operation didn't finish
         if (!this.getTransactions.containsKey(msg.transacition_id)) { return; }
         GetTransaction transaction = this.getTransactions.get(msg.transacition_id);
         transaction.replies.add(msg.entry);
 
+        // check quorum
         if (transaction.replies.size() < App.R) { return; }
         this.getTransactions.remove(msg.transacition_id);
         // find the most updated data item
@@ -439,7 +457,6 @@ public class Node extends AbstractActor {
             System.out.println("READ "+transaction.client.toString()+ " " +this.id+" "+transaction.key+" "+latestEntry.value + " " + latestEntry.version);
         }else{
             sendMessageDelay(transaction.client, new Get.FailMsg(transaction.key));
-            //transaction.client.tell(new Get.FailMsg(transaction.key), getSelf());
         }
     }
 
@@ -680,8 +697,8 @@ public class Node extends AbstractActor {
     }
 
     /**
-     * Leave.TransferItemsMsg handler; the new responsible nodes insert the leaving node data items to their staged
-     * storage and inform the leaving node.
+     * Leave.TransferItemsMsg handler; the new responsible nodes insert the leaving node's data items to their staged
+     * storage, and inform the leaving node.
      *
      * @param msg Leave.TransferItemsMsg message.
      */
@@ -918,9 +935,3 @@ public class Node extends AbstractActor {
         .build();
     }
 }
-
-/* 
- * TODO
- * 1. USE `amIResponsible` method that tells if I'm responsible for a data item
- * 2. CHECK all crash condition, sometimes they are not needed for project assumptions (maybe we insert them in any case?)
- */

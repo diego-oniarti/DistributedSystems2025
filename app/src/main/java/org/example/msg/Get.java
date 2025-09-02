@@ -7,7 +7,7 @@ import org.example.shared.*;
  * This class represents the messages exchanged during a get request (read operation).
  */
 public class Get {
-    /** This class represents the message to begin a get request. */
+    /** This class represents the message for beginning a get request. */
     public static class InitiateMsg implements Serializable {
         /** Key of the data item. */
         public final int key;
@@ -17,7 +17,7 @@ public class Get {
         }
     }
 
-    /** This class represents the message to request the replicas to the responsible for the data item. */
+    /** This class represents the message for requesting the replicas to the responsible for the data item. */
     public static class EntryRequestMsg implements Serializable {
         /** Key of the data item. */
         public final int key;
@@ -30,7 +30,7 @@ public class Get {
         }
     }
 
-    /** This class represents the message to to give to the coordinator the replica. */
+    /** This class represents the message for giving the replicas to the coordinator. */
     public static class EntryResponseMsg implements Serializable {
         /** Entry of the responsible local storage. */
         public final Entry entry;
@@ -43,7 +43,7 @@ public class Get {
         }
     }
 
-    /** This class represents the message to set a timeout to the get request. */
+    /** This class represents the message for setting a timeout for the get request. */
     public static class TimeoutMsg implements Serializable {
         /** Get request ID. */
         public final int transaction_id;
@@ -53,7 +53,7 @@ public class Get {
         }
     }
 
-    /** This class represents the message to notify the client about the success. */
+    /** This class represents the message for notifying the client about the success. */
     public static class SuccessMsg implements Serializable {
         /** Key of the data item. */
         public final int key;
@@ -68,7 +68,7 @@ public class Get {
         }
     }
 
-    /** This class the message to notify the client about the fail. */
+    /** This class represents the message for notifying the client about the fail. */
     public static class FailMsg implements Serializable {
         /** Key of the data item. */
         public final int key;

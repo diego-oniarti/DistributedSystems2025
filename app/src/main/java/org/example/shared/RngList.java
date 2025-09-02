@@ -3,6 +3,11 @@ package org.example.shared;
 import java.util.ArrayList;
 import java.util.Random;
 
+/**
+ * This class represents a list from which we are able to extract/select elements randomly.
+ *
+ * @param <T> type of the elements in the list.
+ */
 public class RngList<T> extends ArrayList<T> {
     private Random rng;
 

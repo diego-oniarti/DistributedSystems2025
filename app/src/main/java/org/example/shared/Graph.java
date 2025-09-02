@@ -9,6 +9,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+/**
+ * This class represents a graph to check system sequential consistency.
+ */
 public class Graph {
     public Set<String> nodes;
     public Map<String, Set<String>> edges;

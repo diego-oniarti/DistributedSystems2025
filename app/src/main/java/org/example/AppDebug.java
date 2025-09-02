@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 import static org.example.App.*;
 
 /**
- * The class executes some tests to check system properties.
+ * The class executes some tests to check system's properties.
  */
 public class AppDebug {
 
@@ -66,6 +66,8 @@ public class AppDebug {
     /** It creates and add nodes (in and out) to the system informing the coordinator. */
     public void addNodes(){
 
+        // put STARTING_NODES in the nodes in and the rest in nodes out; the total number of nodes in the system (in and
+        // out) is STARTING_NODES*3
         for (int i=0; i<STARTING_NODES*3; i++) {
             Peer p = new Peer(i*10, this.system.actorOf(Node.props(i*10)));
             p.ref.tell(new Debug.AnnounceCoordinator(this.coordinator), ActorRef.noSender());
@@ -250,25 +252,26 @@ public class AppDebug {
     }
 
     /**
-     * It checks that round system data items assignment is correct checking the file "seq_cons.txt" containing
-     * the simulation output. It writes the execution better to the console.
+     * It checks the assignment of the data items executed by the round system; it reads the file "seq_cons.txt" containing
+     * the simulation output, it checks assignment's correctness (and it prints found errors), it writes the execution
+     * better to the console.
      *
      * @return a String explaining errors or success
      */
     public String check_round_sim(){
-        /** Storages of all the nodes in the system. Mirrors the state of the system as described by the ADD and DELETE operations */
+        // Storages of all the nodes in the system. Mirrors the state of the system as described by the ADD and DELETE operations
         Map<Integer, Map<Integer, Entry>> storages  = new HashMap<>();  // NodeId -> ( DataKey -> <Value, Version> )
 
-        /** Storages of all the nodes in the system. Mirrors the state of the system as described by the SET, JOIN, CRASH, etc... operations */
+        // Storages of all the nodes in the system. Mirrors the state of the system as described by the SET, JOIN, CRASH, etc... operations
         Map<Integer, Map<Integer, Entry>> simulated = new HashMap<>();  // NodeId -> ( DataKey -> <Value, Version> )
 
-        /** Storage containing all the up-to-date data items */
+        // Storage containing all the up-to-date data items
         Map<Integer, Entry> ideal_storage = new HashMap<>();            // DataKey -> <Value, Version>
 
-        /** List of NodeIDs representing the ring formation in the simulation */
+        // List of NodeIDs representing the ring formation in the simulation
         List<Integer> nodes_in_sim  = new LinkedList<>();
 
-        /** Set of IDs of the nodes that are crashed */
+        // Set of IDs of the nodes that are crashed
         java.util.Set<Integer> nodes_crashed = new HashSet<Integer>();
 
         for (Peer p: nodes_in) {
@@ -288,8 +291,8 @@ public class AppDebug {
 
             while (scan.hasNextLine()) {
                 switch (scan.next()) {
+                    // ROUND START
                     case "/////":
-                    // Print the ideal storage at the beginning of each round
                     scan.next();
                     scan.next();
                     round = scan.nextInt();
@@ -317,8 +320,11 @@ public class AppDebug {
                         }
                     }
 
+                    // print the state of the system at the end of the round
                     System.out.println("NODES:");
                     System.out.println(nodes_in_sim.stream().map(node_id->nodes_crashed.contains(node_id)?node_id.toString()+"(crashed)":node_id.toString()).collect(Collectors.joining(" ")));
+                    // for each data item we print the data item and between square brackets the actual
+                    // responsible for them and the version they have
                     System.out.println("DATA ITEMS:");
                     for (int data_key: ideal_storage.keySet()) {
                         StringBuilder line = new StringBuilder();
@@ -333,7 +339,7 @@ public class AppDebug {
                     }
                     break;
 
-                    // a data item is added when we perform a set, join, leave or recovery operation
+                    // ADD: a data item is added when we perform a set, a join, a leave or a recovery operation
                     case "ADD":
                     int add_id = scan.nextInt();
                     int add_key = scan.nextInt();
@@ -343,7 +349,7 @@ public class AppDebug {
                         .put(add_key, new Entry(add_val, add_version));
                     break;
 
-                    // a data item is deleted when we perform a join or recovery operation
+                    // DELETE: a data item is deleted when we perform a join or a recovery operation
                     case "DELETE":
                     int del_id = scan.nextInt();
                     int del_key = scan.nextInt();
@@ -383,12 +389,6 @@ public class AppDebug {
                     System.out.println(name + ": SET " + key + " FAIL");
                     break;
 
-                    case "GET":
-                    int get_key = scan.nextInt();
-                    String get_value = scan.next();
-                    int get_version = scan.nextInt();
-                    break;
-
                     case "GET_SUCCESS":
                     name = scan.next();
                     key = scan.nextInt();
@@ -411,7 +411,7 @@ public class AppDebug {
                     while (index<nodes_in_sim.size() && join_id>nodes_in_sim.get(index)) index++;
                     nodes_in_sim.add(index, join_id);
 
-                    // Add the data items to the node
+                    // Add the data items to the joining node
                     Map<Integer, Entry> joining_storage = simulated.computeIfAbsent(join_id, jid->new HashMap<>());
                     for (HashMap.Entry<Integer,Entry> e: ideal_storage.entrySet()) {
                         if (isResponsible(nodes_in_sim, join_id, e.getKey())) {
@@ -419,7 +419,7 @@ public class AppDebug {
                         }
                     }
 
-                    // Remove the data items from the nodes
+                    // Remove the data items from the nodes that are no more responsible for
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
 
@@ -481,7 +481,7 @@ public class AppDebug {
                     System.out.println("RECOVERY " + id + " SUCCESS");
                     nodes_crashed.remove(id);
 
-                    // The node gets the new data items.
+                    // The recovered node gets the data items it is responsible for (with the updated versions)
                     for (int storage_key: ideal_storage.keySet()) {
                         if (!isResponsible(nodes_in_sim, id, storage_key)) continue;
                         Entry latest = null;
@@ -498,6 +498,7 @@ public class AppDebug {
                         simulated.get(id).put(storage_key, latest);
                     }
 
+                    // remove data items the recovered node is no more responsible for
                     remove_excess(simulated, nodes_in_sim, nodes_crashed);
                     break;
 
@@ -552,6 +553,7 @@ public class AppDebug {
 
     /**
      * It checks if the actual storage and the simulated one are equal.
+     *
      * @param s1 Storage A
      * @param s2 Storage B
      * @return Whether the two storages are equal
@@ -571,10 +573,6 @@ public class AppDebug {
         .allMatch(key->Objects.equals(s1.get(key), s2.get(key)));
     }
 
-    /**
-     * @param s A storage
-     * @return The string representation of this storage
-     */
     private String storage_to_string(Map<Integer, Entry> s) {
         if (s==null) {
             return "NULL";

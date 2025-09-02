@@ -22,7 +22,7 @@ public class Coordinator extends AbstractActor {
 
     /// ATTRIBUTES
 
-    /** Number of keys */
+    /** Number of keys that can be inserted in the system */
     private final static int K = 4;
 
     /** List of clients */
@@ -79,7 +79,7 @@ public class Coordinator extends AbstractActor {
     }
 
     /**
-     * Debug.AddNodesMsg handler; it adds the nodes in/out and updates keys.
+     * Debug.AddNodesMsg handler; it adds the nodes in/out, populates the vector of keys and updates keys' maximum value.
      *
      * @param msg Debug.AddNodesMsg message
      */
@@ -93,7 +93,7 @@ public class Coordinator extends AbstractActor {
     }
 
     /**
-     * Debug.StartRoundMsg handler; it chooses between performing a set/get round or a join/leave/crash/recovery round
+     * Debug.StartRoundMsg handler; it chooses between performing a set/get round or a join/leave/crash/recovery round,
      * and executes it.
      *
      * @param msg Debug.StartRoundMsg message
@@ -151,7 +151,6 @@ public class Coordinator extends AbstractActor {
                     return;
                 }
                 Peer new_node = nodes_out.getRandom();
-
                 new_node.ref.tell(new Join.InitiateMsg(node.ref), ActorRef.noSender());
                 break;
 

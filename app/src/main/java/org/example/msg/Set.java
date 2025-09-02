@@ -7,7 +7,7 @@ import org.example.shared.*;
  * This class represents the messages exchanged during a set operation.
  */
 public class Set {
-    /** This class represents the message to communicate the success of the set request. */
+    /** This class represents the message for communicating the success of the set request. */
     public static class SuccessMsg implements Serializable {
         public final int key;
         public SuccessMsg(int key) {
@@ -15,7 +15,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to communicate that the set operation failed. */
+    /** This class represents the message for communicating the failure of the set operation. */
     public static class FailMsg implements Serializable {
         public final int key;
         public FailMsg(int key) {
@@ -23,7 +23,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to begin the insertion/modification of a data item in the system. */
+    /** This class represents the messagefor beginning the insertion/modification of a data item in the system. */
     public static class InitiateMsg implements Serializable {
         /** Key of the data item. */
         public final int key;
@@ -36,7 +36,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to request the version of a data item. */
+    /** This class represents the message for requesting the version of a data item. */
     public static class VersionRequestMsg implements Serializable {
         /** Key of the data item. */
         public final int key;
@@ -49,7 +49,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to give the version of a data item (if contained in the storage). */
+    /** This class represents the message for giving the version of a data item (if contained in the storage). */
     public static class VersionResponseMsg implements Serializable {
         /** The version of the data item (or -1 if the data item isn't in the storage). */
         public final int version;
@@ -62,7 +62,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to update the version of a data item or insert a new one with the right version. */
+    /** This class represents the message for updating the version of a data item or insert a new one with the right version. */
     public static class UpdateEntryMsg implements Serializable {
         /** Entry containing the version and the value of the (updated) data item. */
         public final Entry entry;
@@ -75,7 +75,7 @@ public class Set {
         }
     }
 
-    /** This class represents the message to stop the request execution. */
+    /** This class represents the message for stopping the request's execution. */
     public static class TimeoutMsg implements Serializable {
         /** Set request ID. */
         public final int transaction_id;
@@ -86,8 +86,8 @@ public class Set {
     }
 
     /**
-     * This class represents the message to unlock a data ite key for which there were concurrent transactions
-     * (write/write, read/write).
+     * This class represents the message for unlocking a data ite key for which there were concurrent transactions
+     * (write/write).
      */
     public static class UnlockMsg implements Serializable {
         /** Data item key to unlock. */

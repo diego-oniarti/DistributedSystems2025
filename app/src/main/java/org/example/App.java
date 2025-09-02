@@ -5,15 +5,26 @@ package org.example;
 
 import java.io.FileNotFoundException;
 
+/**
+ * This class is used for defining system's variables and for running simulation/tests.
+ */
 public class App {
 
+    /** Replication factor. */
     public static final int N = 3;
+    /** Write quorum. */
     public static final int W = 2;
+    /** Read quorum. */
     public static final int R = 2;
+
+    /** Timeout (milliseconds). */
     public static final int T = 500;
+    /** Messages' maximum propagation delay. */
     public static final int MSG_MAX_DELAY = 100;
 
+    /** Number of nodes in the system at the simulation's begin. */
     public static final int STARTING_NODES = 5;
+    /** Number of rounds to execute during the simulation. */
     public static final int ROUNDS = 30;
 
     public static void main(String[] args) throws FileNotFoundException {
