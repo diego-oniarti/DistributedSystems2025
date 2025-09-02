@@ -173,7 +173,9 @@ We manage these conflicts in the following way:
     \texttt{set} operation in \textbf{Fig.\ref{fig:messages}}). \\
     In some corner cases it may happen that all concurrent write operations fail.
     This behaviour occurs when none of the concurrent write operations manages to
-    secure enough nodes for a quorum.
+    secure enough nodes for a quorum. This design choice was made to ensure the
+    correct behaviour of the system without adding eccessive delays or convoluted
+    synchronization messages.
     \item read/write conflicts: the get transactions fail if the responsible
     nodes are participating in a set operation on the same data item. If the
     key is locked, the node does not continue performing the read operation.
