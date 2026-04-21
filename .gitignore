@@ -3,6 +3,7 @@
 
 # Ignore Mac trash
 .DS_Store
+report/.DS_Store
 
 # Ignore Gradle build output directory
 build
